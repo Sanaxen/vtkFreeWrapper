@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DICOMview", "test2.vcproj", "{5E8E7374-49D5-4D45-BF7C-3EB5BF6FB10C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DICOM2bmp", "DICOM2bmp\DICOM2bmp.vcproj", "{C0AA0F2E-3157-48AF-AF27-85110F448265}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5E8E7374-49D5-4D45-BF7C-3EB5BF6FB10C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5E8E7374-49D5-4D45-BF7C-3EB5BF6FB10C}.Debug|Win32.Build.0 = Debug|Win32
+		{5E8E7374-49D5-4D45-BF7C-3EB5BF6FB10C}.Release|Win32.ActiveCfg = Release|Win32
+		{5E8E7374-49D5-4D45-BF7C-3EB5BF6FB10C}.Release|Win32.Build.0 = Release|Win32
+		{C0AA0F2E-3157-48AF-AF27-85110F448265}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C0AA0F2E-3157-48AF-AF27-85110F448265}.Debug|Win32.Build.0 = Debug|Win32
+		{C0AA0F2E-3157-48AF-AF27-85110F448265}.Release|Win32.ActiveCfg = Release|Win32
+		{C0AA0F2E-3157-48AF-AF27-85110F448265}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,214 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{68EFB1F4-68CE-45BF-AA85-212B43CE06A0}</ProjectGuid>
+    <RootNamespace>vtkWrapperLib</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Debug\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Debug\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Debug\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Release\32bit\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Release\64bit\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Release\32bit\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Release\64bit\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <CustomBuildStep>
+      <Command>cmd/c dcopy.bat $(OutDir)
+</Command>
+      <Outputs>../util/lib/$(OutDir)$(TargetName).lib;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>../util/include;../../VTK\Release\include\vtk-5.8;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIBS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <CustomBuildStep>
+      <Command>cmd/c dcopy.bat $(OutDir)
+</Command>
+      <Outputs>../util/lib/$(OutDir)$(TargetName).lib;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>../util/include;../../VTK\Release\include\vtk-5.8;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIBS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <CustomBuildStep>
+      <Command>cmd/c rcopy.bat $(OutDir)
+</Command>
+      <Outputs>../util/lib/$(OutDir)$(TargetName).dll;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <ClCompile>
+      <AdditionalIncludeDirectories>../util/include;../../VTK\32bit\Release\include\vtk-5.10;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIBS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CustomBuildStep>
+      <Command>cmd/c rcopy64.bat $(OutDir)
+</Command>
+      <Outputs>../util/lib/$(OutDir)$(TargetName).dll;%(Outputs)</Outputs>
+    </CustomBuildStep>
+    <ClCompile>
+      <AdditionalIncludeDirectories>../util/include;../../VTK\64bit/Release\include\vtk-7.1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIBS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\util\src\gmrVTK.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKAxes.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKCapture.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKCommand.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKDICOM.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExport.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExportOBJ.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExportPLY.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExportSTL.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExportVRML.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKExportX3D.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKImport.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKImportOBJ.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKImportPLY.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKImportSTL.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKImportVRML.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKOutline.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKPicker.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKPoints.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKPolygon.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKPolyline.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKRender.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKScalarBar.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKText.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKUtil.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKXYPlot.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\util\include\gmrVTK.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKAxes.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKCapture.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKCommand.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKDefs.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKDICOM.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKExport.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKImport.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKLIBs.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKLocker.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKOutline.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKPicker.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKPoints.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKPolygon.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKPolyline.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKRender.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKScalarBar.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKText.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKXYPlot.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
