@@ -81,6 +81,7 @@
 
 #include "vtkVectorText.h"
 #include "vtkFollower.h"
+#include "vtkCaptionActor2D.h"
 
 #include "vtkCommand.h"
 #include "vtkPointPicker.h"

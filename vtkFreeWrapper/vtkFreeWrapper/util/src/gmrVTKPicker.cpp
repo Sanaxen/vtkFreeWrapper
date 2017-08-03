@@ -157,7 +157,7 @@ void gmrVTKPicker::GetPositionInfo(int& succed, double* pos, double* wpos, int& 
 	wpos_[2] = wpos[2];
 
 	id = pointId_;
-	*actor = actor_;
+	if (actor ) *actor = actor_;
 	succed_ = succed;
 }
 //////////////////////////////////////////////////////////////////////////////

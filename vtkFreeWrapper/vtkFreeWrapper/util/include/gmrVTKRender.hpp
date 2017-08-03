@@ -134,6 +134,7 @@ public:
 	void AddActor(vtkXYPlotActor* actor);
 	void AddActor(vtkVolume* actor);
 	void AddActor(vtkTextActor* actor);
+	void AddActor(vtkCaptionActor2D* actor);
 
 	/** アクターの取り外し
 	 *
@@ -143,6 +144,7 @@ public:
 	void RemoveActor(vtkImageActor* actor);
 	void RemoveActor(vtkXYPlotActor* actor);
 	void RemoveActor(vtkTextActor* actor);
+	void RemoveActor(vtkCaptionActor2D* actor);
 
 	/** レンダリング開始
 	 *

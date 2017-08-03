@@ -24,6 +24,10 @@
 #include "gmrVTKText.hpp"
 #include "gmrVTKExport.hpp"
 #include "gmrVTKImport.hpp"
+#include "gmrVTKPicker.hpp"
+#include "gmrVTKPoints.hpp"
+#include "gmrVTKPolyline.hpp"
+#include "gmrVTKAxes.hpp"
 
 #include "vtkBoxWidget.h"
 #include "vtkTransform.h"
@@ -37,6 +41,9 @@
 #include "vtkDistanceRepresentation3D.h"
 #include "vtkDistanceRepresentation2D.h"
 #include "vtkPointHandleRepresentation3D.h"
+#include "vtkVolumePicker.h"
+
+#include "vtkCaptionActor2D.h"
 
 #include <string>
 // DICOM sample image sets
@@ -98,8 +105,33 @@ vtkSmartPointer<vtkPointHandleRepresentation3D> handleRep = 0;
 vtkSmartPointer<vtkDistanceRepresentation2D> distanceRep = 0;
 vtkDistanceWidget* distanceWidget = 0;
 
+int picker_flag = 0;
+vtkVolumePicker* cellpicker = 0;
+
+class pickPoint
+{
+public:
+	pickPoint()
+	{
+		points = 0;
+		lines = 0;
+		sectionTextActor = 0;
+	}
+	double x, y;
+	double pos[3];
+	gmrVTKPoints* points;
+	gmrVTKPolyline* lines;
+	vtkCaptionActor2D* sectionTextActor;
+};
+
+std::vector<pickPoint> pickPointList;
+
+gmrVTKPicker* picker = 0;
+
 vtkBoxWidget *boxWidget = 0;
 vtkBoxWidget *boxWidget2 = 0;
+int RubberBandZoom_flag = 0;
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // KeyPressEventを拾うためのコールバック
 class MyCallback : public gmrVTKCommand
@@ -116,14 +148,59 @@ public:
 			vtkRenderWindowInteractor *iren =
 					reinterpret_cast<vtkRenderWindowInteractor*>(caller);
 
-			// スペース・キーが押されたらRubberBandZoomにする
+
 			char* key = iren->GetKeySym();
-			if ( std::string(key) == "space" )
+
+			if (std::string(key) == "d")
 			{
+				if (picker_flag)
+				{
+					printf("picker OFF\n");
+					picker_flag = 0;
+				}
+				else
+				{
+					printf("picker ON\n");
+					picker_flag = 1;
+				}
+			}
+			if (std::string(key) == "D")
+			{
+				for (int i = 0; i < pickPointList.size(); i++)
+				{
+					this->GetRenderer()->RemoveActor(pickPointList[i].points->GetActor());
+					if (pickPointList[i].lines)
+					{
+						this->GetRenderer()->RemoveActor(pickPointList[i].lines->GetActor());
+						delete pickPointList[i].lines;
+					}
+					if (pickPointList[i].sectionTextActor)
+					{
+						this->GetRenderer()->RemoveActor(pickPointList[i].sectionTextActor);
+						pickPointList[i].sectionTextActor->Delete();
+					}
+
+					delete pickPointList[i].points;
+				}
+				pickPointList.clear();
+				this->GetRenderer()->GetRenderWindow()->Render();
+			}
+
+			// スペース・キーが押されたらRubberBandZoomにする
+			if (std::string(key) == "space")
+			{
+				if (!RubberBandZoom_flag)
+				{
+					RubberBandZoom_flag = 1;
 				this->GetRenderer()->InteractorStyleRubberBandZoom();
-			}else{
+				}
+				else
+				{
+					RubberBandZoom_flag = 0;
 				this->GetRenderer()->InteractorStyleTrackballCamera();
 			}
+			}
+
 
 			if ( std::string(key) == "b" && boxWidget)
 			{
@@ -213,37 +290,174 @@ public:
 	}
 };
 
+class MyCallbackPick : public gmrVTKCommand
+{
+	char buf[256];
+	gmrVTKText* text;
+
+public:
+	MyCallbackPick() { text = NULL;};
+
+	static MyCallbackPick *New() {
+		return new MyCallbackPick;
+	}
+
+	virtual void Execute(vtkObject *caller, unsigned long eventId, void*)
+	{
+		printf("@picker_flag:%d\n", picker_flag);
+		if (!picker_flag) return;
+
+		vtkRenderWindowInteractor *iren =
+			reinterpret_cast<vtkRenderWindowInteractor*>(caller);
+
+		// Window Position
+		double x = iren->GetEventPosition()[0];
+		double y = iren->GetEventPosition()[1];
+
+		printf("%f %f\n", x, y);
+
+		// 3D Positon
+		pickPoint wpos;
+		double pos[3];
+
+		wpos.x = x;
+		wpos.y = y;
+		int succed = cellpicker->Pick(x, y, 0, this->GetRenderer()->GetRenderer());
+		cellpicker->GetPickPosition(wpos.pos);
+
+
+		sprintf(buf, "X=%f Y=%f Z=%f (%d,%d)", wpos.pos[0], wpos.pos[1], wpos.pos[2], (int)(x), (int)(y));
+		//sprintf(buf, "(%.3f,%.3f,%.3f)", wpos.pos[0], wpos.pos[1], wpos.pos[2]);
+
+		//if (text == NULL) text = new gmrVTKText;
+		//else {
+		//	this->GetRenderer()->RemoveActor(text->GetActor());
+		//}
+		//text->SetText(buf);
+		//text->SetPosition(5,200);
+		//text->SetSize(13);
+
+		double scalar[3] = { 1,1,1 };
+		if (succed)
+		{
+			//text->SetColor(1, 1, 1);
+			wpos.points = new gmrVTKPoints;
+
+			wpos.points->SetSize(10);
+			wpos.points->SetPoint(wpos.pos);
+			wpos.points->SetDiffuseColor(1, 0, 0);
+			//wpos.points->SetScalar(scalar);
+			this->GetRenderer()->AddActor(wpos.points->GetActor());
+			 
+			pickPointList.push_back(wpos);
+
+			if (pickPointList.size() && pickPointList.size() % 2 == 0)
+			{
+				gmrVTKPolyline* poly = new gmrVTKPolyline;
+
+				int n = pickPointList.size() - 1;
+
+				poly->SetPoint(pickPointList[n].pos);
+				poly->SetPoint(pickPointList[n-1].pos);
+				poly->SetSize(2);
+				//poly->SetScalar(scalar);
+				poly->SetDiffuseColor(0.0, 1.0, 0.0);
+
+				pickPointList.pop_back();
+				wpos.lines = poly;
+
+
+				double dist =
+					(pickPointList[n].pos[0] - pickPointList[n - 1].pos[0])*(pickPointList[n].pos[0] - pickPointList[n - 1].pos[0]) +
+					(pickPointList[n].pos[1] - pickPointList[n - 1].pos[1])*(pickPointList[n].pos[1] - pickPointList[n - 1].pos[1]) +
+					(pickPointList[n].pos[2] - pickPointList[n - 1].pos[2])*(pickPointList[n].pos[2] - pickPointList[n - 1].pos[2]);
+				dist = sqrt(dist);
+				
+				char buf[256];
+
+				// Caption
+				wpos.sectionTextActor = vtkCaptionActor2D::New();
+
+				double dx = (pickPointList[n].pos[0] + pickPointList[n - 1].pos[0]) / 2.0;
+				double dy = (pickPointList[n].pos[1] + pickPointList[n - 1].pos[1]) / 2.0;
+				double dz = (pickPointList[n].pos[2] + pickPointList[n - 1].pos[2]) / 2.0;
+
+				sprintf(buf, "%.3f", dist);
+
+				wpos.sectionTextActor->SetAttachmentPoint(dx, dy, dz);
+				wpos.sectionTextActor->SetCaption(buf);
+				wpos.sectionTextActor->BorderOff();
+				wpos.sectionTextActor->LeaderOn();
+				wpos.sectionTextActor->SetPadding(0);
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetJustificationToLeft();
+				wpos.sectionTextActor->GetCaptionTextProperty()->ShadowOff();
+				wpos.sectionTextActor->GetCaptionTextProperty()->ItalicOff();
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetFontFamilyToCourier();
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetFontSize(24);
+				wpos.sectionTextActor->GetTextActor()->SetTextScaleModeToNone();
+				pickPointList.push_back(wpos);
+
+
+
+				//this->GetRenderer()->GetRenderer()->AddActor2D(wpos.sectionTextActor);
+
+				this->GetRenderer()->AddActor(wpos.sectionTextActor);
+				this->GetRenderer()->AddActor(poly->GetActor());
+			}
+		}
+		else
+		{
+			//text->SetColor(0.5, 0.5, 0.5);
+		}
+		//text->SetColor(1, 0, 0);
+		//this->GetRenderer()->AddActor(text->GetActor());
+		this->GetRenderer()->GetRenderWindow()->Render();
+	}
+};
+
 extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue)
  {
  	gmrVTKText* text1 = new gmrVTKText;
 	text1->SetText("space key =>RubberBandZoom");
-	text1->SetPosition(20,400);
+	text1->SetPosition(20,140);
 	text1->SetSize(15);
 	text1->SetColor(1.0,0.0,0.0);
 
 	gmrVTKText* text2 = new gmrVTKText;
 	text2->SetText("no space key => default");
-	text2->SetPosition(20,380);
+	text2->SetPosition(20,120);
 	text2->SetSize(15);
 	text2->SetColor(0,1.0,0.0);
 
 	gmrVTKText* text3 = new gmrVTKText;
 	text3->SetText("r key => resize box on/off");
-	text3->SetPosition(20,360);
+	text3->SetPosition(20,100);
 	text3->SetSize(15);
 	text3->SetColor(0,1.0,0.0);
 
 	gmrVTKText* text4= new gmrVTKText;
 	text4->SetText("c key => cross section  box on/off");
-	text4->SetPosition(20, 340);
+	text4->SetPosition(20, 80);
 	text4->SetSize(15);
 	text4->SetColor(0, 1.0, 0.0);
 
 	gmrVTKText* text5 = new gmrVTKText;
-	text5->SetText("m key => measure on/off");
-	text5->SetPosition(20, 320);
+	text5->SetText("d key => measure on/off");
+	text5->SetPosition(20, 60);
 	text5->SetSize(15);
 	text5->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text6 = new gmrVTKText;
+	text6->SetText("D key => measure clear");
+	text6->SetPosition(20, 40);
+	text6->SetSize(15);
+	text6->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text7 = new gmrVTKText;
+	text7->SetText("m key => measure(2D) on/off");
+	text7->SetPosition(20, 20);
+	text7->SetSize(15);
+	text7->SetColor(0, 1.0, 0.0);
 
 	gmrVTKRender* render;
 #if 10
@@ -315,6 +529,8 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	render->AddActor(text3->GetActor());
 	render->AddActor(text4->GetActor());
 	render->AddActor(text5->GetActor());
+	render->AddActor(text6->GetActor());
+	render->AddActor(text7->GetActor());
 
 	RCvolumeMapper = reader->GetVolumeMapper();
 	RCskinMapper = reader->GetskinMapper();
@@ -328,6 +544,13 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	//camera->SetPosition(0,1,0);
 	//camera->SetFocalPoint(0,0,0);
 	//camera->ComputeViewPlaneNormal();
+
+	// Add Axes X-Y-Z
+	gmrVTKAxes *axes = new gmrVTKAxes;
+	axes->SetLength(10.0);
+	axes->SetOrigin(-6.0, 2.0, -6.0);
+	axes->SetRadius(0.05);
+	axes->SymmetricOff();
 
 	pointPlacer = vtkSmartPointer<vtkPolyDataPointPlacer>::New();
 	pointPlacer->AddProp(reader->GetVolume());
@@ -483,6 +706,15 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			boxWidget2->On();
 		}
 	}
+
+	cellpicker = vtkVolumePicker::New();
+	cellpicker->SetTolerance(1.0e-6);
+	cellpicker->SetVolumeOpacityIsovalue(0.1);
+	render->GetRenderWindowInteractor()->SetPicker(cellpicker);
+
+	MyCallbackPick* callback = MyCallbackPick::New();
+	render->AddCallback(vtkCommand::LeftButtonPressEvent, callback);
+	picker_flag = 0;
 	render->DefaultRun();
 	
 }
