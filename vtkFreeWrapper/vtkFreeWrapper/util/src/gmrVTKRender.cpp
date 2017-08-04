@@ -90,6 +90,10 @@ void gmrVTKRender::AddActor(vtkTextActor* actor)
 {
 	ren_->AddActor2D(actor);
 }
+void gmrVTKRender::AddActor(vtkCaptionActor2D* actor)
+{
+	ren_->AddActor2D(actor);
+}
 
 void gmrVTKRender::RemoveActor(vtkProp* actor)
 {
@@ -108,6 +112,10 @@ void gmrVTKRender::RemoveActor(vtkImageActor* actor)
 	ren_->RemoveActor(actor);
 }
 void gmrVTKRender::RemoveActor(vtkTextActor* actor)
+{
+	ren_->RemoveActor2D(actor);
+}
+void gmrVTKRender::RemoveActor(vtkCaptionActor2D* actor)
 {
 	ren_->RemoveActor2D(actor);
 }
