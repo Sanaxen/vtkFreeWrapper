@@ -44,6 +44,8 @@ void dicom1(char* folderName)
  ## Code Examples2
 3D image
 
+
+```cpp
 void dicom2(char* folderName, int VolumeRenderring)
  {
  	gmrVTKRender* render = new gmrVTKRender;
