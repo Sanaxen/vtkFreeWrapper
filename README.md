@@ -40,7 +40,7 @@ void dicom1(char* folderName)
 }
 ```
 
- ## Code Examples1
+ ## Code Examples2
 3D image
 
 void dicom2(char* folderName, int VolumeRenderring)
