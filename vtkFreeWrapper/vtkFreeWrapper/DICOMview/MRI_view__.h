@@ -11,13 +11,13 @@
 extern "C"
 {
 MRI_VIEW_EXPORT void DICOM_SliceViewer(char* folderName, int capture);
-MRI_VIEW_EXPORT void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue);
+MRI_VIEW_EXPORT void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile);
 
 MRI_VIEW_EXPORT void DICOM2BMP(char* dcm_files_folderName);
-MRI_VIEW_EXPORT void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue);
-MRI_VIEW_EXPORT void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue);
-MRI_VIEW_EXPORT void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue);
-MRI_VIEW_EXPORT void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue);
+MRI_VIEW_EXPORT void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
+MRI_VIEW_EXPORT void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
+MRI_VIEW_EXPORT void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
+MRI_VIEW_EXPORT void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
 };
 
 

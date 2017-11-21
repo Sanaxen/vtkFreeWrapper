@@ -415,7 +415,7 @@ public:
 	}
 };
 
-extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue)
+extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile)
  {
  	gmrVTKText* text1 = new gmrVTKText;
 	text1->SetText("space key =>RubberBandZoom");
@@ -476,7 +476,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	{
 		reader->SampleDistance() = sample_dist;
 	}
-	if (isovalue > -1.0E-8)
+	//if (isovalue > -1.0E-8)
 	{
 		reader->surface_On = 1;
 		reader->IsoValue() = isovalue;
@@ -633,6 +633,11 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	if ( output== 1 || output == 11 )
 	{
 		gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
+		if (outfile != NULL)
+		{
+			printf("[%s]\n", outfile);
+			expoter->SaveFile(render, outfile);
+		}else
 		expoter->SaveFile(render, "aaa");
 		delete expoter;
 		if ( output > 10 ) exit(0);
@@ -640,12 +645,22 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	if ( output== 2 || output == 12 )
 	{
 		gmrVTKExportSTL* expoter = new gmrVTKExportSTL();
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(reader->GetSkin()->GetOutputPort(), outfile);
+		}
+		else
 		expoter->SaveFile(reader->GetSkin()->GetOutputPort(), "aaaa.stl");
 		if ( output > 10 ) exit(0);
 	}
 	if ( output== 3 || output == 13 )
 	{
 		gmrVTKExportVRML* expoter = new gmrVTKExportVRML();
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(render, outfile);
+		}
+		else
 		expoter->SaveFile(render, "aaa.wrl");
 		delete expoter;
 		if ( output > 10 ) exit(0);
@@ -653,6 +668,11 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	if ( output== 4 || output == 14 )
 	{
 		gmrVTKExportX3D* expoter = new gmrVTKExportX3D();
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(render, outfile);
+		}
+		else
 		expoter->SaveFile(render, "aaa.x3d");
 		delete expoter;
 		if ( output > 10 ) exit(0);
@@ -719,7 +739,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	
 }
 
- extern "C" void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue)
+ extern "C" void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
  {
 	char* folderName;
 
@@ -729,10 +749,29 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 	// DICOM スライスViewer
 	fprintf(stderr, "==> convert obj!!\n");
-	DICOM_3DViewer(folderName, 1+f, -1.0, isovalue);
+
+	char outfileName[512];
+	char* outfile2 = outfile;
+	if (outfile)
+	{
+		char drive[_MAX_DRIVE];	// ドライブ名
+		char dir[_MAX_DIR];		// ディレクトリ名
+		char fname[_MAX_FNAME];	// ファイル名
+		char ext[_MAX_EXT];		// 拡張子
+
+		_splitpath(outfile, drive, dir, fname, ext);
+		if (strcmp(".obj", ext) == 0 || strcmp(".OBJ", ext) == 0)
+		{
+			strcpy(outfileName, outfile);
+			sprintf(outfileName, "%s%s%s", drive, dir, fname);
+			outfile2 = outfileName;
+		}
+	}
+
+	DICOM_3DViewer(folderName, 1+f, -1.0, isovalue, outfile2);
 	fprintf(stderr, "finish.\n");
 }
- extern "C" void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue)
+ extern "C" void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
  {
 	char* folderName;
 
@@ -742,11 +781,11 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 	// DICOM スライスViewer
 	fprintf(stderr, "==> convert STL!!\n");
-	DICOM_3DViewer(folderName, 2+f, -1.0, isovalue);
+	DICOM_3DViewer(folderName, 2+f, -1.0, isovalue, outfile);
 	fprintf(stderr, "finish.\n");
 }
 
- extern "C" void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue)
+ extern "C" void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
 {
 	char* folderName;
 
@@ -756,11 +795,11 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 	// DICOM スライスViewer
 	fprintf(stderr, "==> convert vrml!!\n");
-	DICOM_3DViewer(folderName, 3+f, -1.0, isovalue);
+	DICOM_3DViewer(folderName, 3+f, -1.0, isovalue, outfile);
 	fprintf(stderr, "finish.\n");
 }
 
- extern "C" void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue)
+ extern "C" void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
  {
 	char* folderName;
 
@@ -770,6 +809,6 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 	// DICOM スライスViewer
 	fprintf(stderr, "==> convert x3d!!\n");
-	DICOM_3DViewer(folderName, 4+f, -1.0, isovalue);
+	DICOM_3DViewer(folderName, 4+f, -1.0, isovalue, outfile);
 	fprintf(stderr, "finish.\n");
 }
