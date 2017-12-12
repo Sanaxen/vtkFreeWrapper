@@ -29,7 +29,7 @@ gmrVTKDICOM::gmrVTKDICOM()
 
 	range_[0] = 0.0;
 	range_[1] = 255.0;
-	FeatureAngle_ = 60.0;
+	FeatureAngle_ = 0.1;
 	ZNum_ = 0;
 	SampleDistance_ = 1.0;
 
@@ -109,7 +109,7 @@ void gmrVTKDICOM::LoadImageData()
 		vtkSmartPointer<vtkDecimatePro> decimator =
 			vtkDecimatePro::New();
 		decimator->SetInputData(marched);
-		decimator->SetTargetReduction(0.5);
+		decimator->SetTargetReduction(0.05);
 		decimator->SetPreserveTopology(1);
 		decimator->Update();
 		std::cout << "Decimation finished...." << std::endl;

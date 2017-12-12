@@ -128,6 +128,11 @@ public:
 	 */
 	gmrVTKImportSTL(char* filename);
 	virtual ~gmrVTKImportSTL();
+
+	vtkSTLReader* Get()
+	{
+		return STL_;
+	}
 };
 
 /** 
@@ -158,6 +163,11 @@ public:
 	 */
 	gmrVTKImportPLY(char* filename);
 	virtual ~gmrVTKImportPLY();
+	vtkPLYReader* Get()
+	{
+		return PLY_;
+	}
+
 };
 
 /** 
@@ -187,6 +197,11 @@ public:
 	 */
 	gmrVTKImportOBJ(char* filename);
 	virtual ~gmrVTKImportOBJ();
+
+	vtkOBJReader* Get()
+	{
+		return OBJ_;
+	}
 };
 
 /** 
@@ -216,5 +231,9 @@ public:
 	 */
 	gmrVTKImportVRML(char* filename);
 	virtual ~gmrVTKImportVRML();
+	vtkVRMLImporter* Get()
+	{
+		return VRML_;
+	}
 };
 #endif

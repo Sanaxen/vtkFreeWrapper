@@ -30,5 +30,6 @@ void gmrVTKExportOBJ::SaveFile( gmrVTKRender* renwin, char* filename)
 {
 	vtkExporter_->SetRenderWindow(renwin->GetRenderWindow());
     vtkExporter_->SetFilePrefix(filename);
+	vtkExporter_->Update();
 	vtkExporter_->Write();
 }

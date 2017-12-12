@@ -132,6 +132,64 @@ vtkBoxWidget *boxWidget = 0;
 vtkBoxWidget *boxWidget2 = 0;
 int RubberBandZoom_flag = 0;
 
+class ErrorObserver : public vtkCommand
+{
+public:
+	ErrorObserver() :
+		Error(false),
+		Warning(false),
+		ErrorMessage(""),
+		WarningMessage("") {}
+	static ErrorObserver *New()
+	{
+		return new ErrorObserver;
+	}
+	bool GetError() const
+	{
+		return this->Error;
+	}
+	bool GetWarning() const
+	{
+		return this->Warning;
+	}
+	void Clear()
+	{
+		this->Error = false;
+		this->Warning = false;
+		this->ErrorMessage = "";
+		this->WarningMessage = "";
+	}
+	virtual void Execute(vtkObject *vtkNotUsed(caller),
+		unsigned long event,
+		void *calldata)
+	{
+		switch (event)
+		{
+		case vtkCommand::ErrorEvent:
+			ErrorMessage = static_cast<char *>(calldata);
+			this->Error = true;
+			break;
+		case vtkCommand::WarningEvent:
+			WarningMessage = static_cast<char *>(calldata);
+			this->Warning = true;
+			break;
+		}
+	}
+	std::string GetErrorMessage()
+	{
+		return ErrorMessage;
+	}
+	std::string GetWarningMessage()
+	{
+		return WarningMessage;
+	}
+private:
+	bool        Error;
+	bool        Warning;
+	std::string ErrorMessage;
+	std::string WarningMessage;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // KeyPressEventを拾うためのコールバック
 class MyCallback : public gmrVTKCommand
@@ -147,7 +205,6 @@ public:
 		{
 			vtkRenderWindowInteractor *iren =
 					reinterpret_cast<vtkRenderWindowInteractor*>(caller);
-
 
 			char* key = iren->GetKeySym();
 
@@ -476,28 +533,55 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	{
 		reader->SampleDistance() = sample_dist;
 	}
-	//if (isovalue > -1.0E-8)
+	if (output != 100)
 	{
 		reader->surface_On = 1;
 		reader->IsoValue() = isovalue;
 	}
     
+	vtkObject::SetGlobalWarningDisplay(0);
+	vtkSmartPointer<ErrorObserver>  errorObserver =
+		vtkSmartPointer<ErrorObserver>::New();
+	render->GetRenderWindowInteractor()->AddObserver(vtkCommand::ErrorEvent, errorObserver);
+	render->GetRenderWindowInteractor()->AddObserver(vtkCommand::WarningEvent, errorObserver);
+	
+	reader->GetDICOMImage()->AddObserver(vtkCommand::ErrorEvent, errorObserver);
+	reader->GetDICOMImage()->AddObserver(vtkCommand::WarningEvent, errorObserver);
+
+	char drive[_MAX_DRIVE];	// ドライブ名
+	char dir[_MAX_DIR];		// ディレクトリ名
+	char fname[_MAX_FNAME];	// ファイル名
+	char ext[_MAX_EXT];		// 拡張子
+
+	_splitpath(folderName, drive, dir, fname, ext);
+
+	bool color_def = false;
 	char colorset[256];
-	sprintf(colorset, "color.def");
+	sprintf(colorset, "%s%scolor.def", drive, dir);
+	printf("colorset[%s]\n", colorset);
+
 	FILE* fp = fopen(colorset, "r");
+	if (fp == NULL)
+	{
+		printf("undefined [color.def]\n");
+	}
 	if (fp)
 	{
+		color_def = true;
 		printf("load color.def\n");
 		char buf[256];
+		char colorset2[256];
 		if (fgets(buf, 256, fp) != NULL)
 		{
-			strcpy(colorset, buf);
-			if (colorset[strlen(colorset) - 1] == '\n')
+			strcpy(colorset2, buf);
+			if (colorset2[strlen(colorset2) - 1] == '\n')
 			{
-				colorset[strlen(colorset) - 1] = '\0';
+				colorset2[strlen(colorset2) - 1] = '\0';
 			}
 		}
 		fclose(fp);
+		sprintf(colorset, "%s%s%s", drive, dir, colorset2);
+		printf("colorset[%s]\n", colorset);
 
 		fp = fopen(colorset, "r");
 		if (fp)
@@ -523,6 +607,16 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	//    reader->SetDirectoryName("data");
 	reader->SetDirectoryName(folderName);
 	reader->LoadImageData();
+	if (errorObserver->GetError())
+	{
+		//std::cout << "Caught error! " << errorObserver->GetErrorMessage();
+		std::cout << "Error! " << "DICOM Image: Either a filename was not specified or the specified directory does not contain any DICOM images.";
+		return;
+	}
+	if (reader->GetDICOMImage()->GetErrorCode())
+	{
+		return;
+	}
 
 	render->AddActor(text1->GetActor());
 	render->AddActor(text2->GetActor());
@@ -587,12 +681,36 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 		
 		if (reader->surface_On)
 		{
+			reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
+			//if (reader->volumeColorSet.size() >= 2)
+			//{
+			//	printf("surface color set\n");
+			//	for (int i = 1; i < reader->volumeColorSet.size(); ++i)
+			//	{
+			//		printf("%f -> [%f,%f]\n", reader->IsoValue(), reader->volumeColorSet[i - 1].x[0], reader->volumeColorSet[i].x[0]);
+			//		if (reader->volumeColorSet[i-1].x[0] <= reader->IsoValue() && reader->volumeColorSet[i].x[0] > reader->IsoValue())
+			//		{
+			//			printf("==>%f -> [%f,%f]\n", reader->IsoValue(), reader->volumeColorSet[i - 1].x[0], reader->volumeColorSet[i].x[0]);
+			//			reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[i].x[1], reader->volumeColorSet[i].x[2], reader->volumeColorSet[i].x[3]);
+			//		}
+			//	}
+			//	if (reader->volumeColorSet[0].x[0] > reader->IsoValue())
+			//	{
+			//		reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[1].x[1]*0.7, reader->volumeColorSet[1].x[2] * 0.7, reader->volumeColorSet[1].x[3] * 0.7);
+			//	}
+			//	if (reader->volumeColorSet[reader->volumeColorSet.size()-1].x[0] < reader->IsoValue())
+			//	{
+			//		reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[1]*0.7, reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[2] * 0.7, reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[3] * 0.7);
+			//	}
+			//}
+			//else
+			{
 			reader->GetSurfaceActor()->GetProperty()->SetColor(240. / 255., 217. / 255., 202. / 255.);
 			reader->GetSurfaceActor()->GetProperty()->SetSpecular(0.2);
 			
 			if (reader->IsoValue() > 50.0)
 			{
-				reader->GetSurfaceActor()->GetProperty()->SetColor(227. / 255., 66.0 / 255., 111. / 255.);
+					reader->GetSurfaceActor()->GetProperty()->SetColor(227. / 255., 114. / 255., 69. / 255.);
 			}
 			if (reader->IsoValue() > 100.0)
 			{
@@ -601,6 +719,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			if (reader->IsoValue() > 200.0)
 			{
 				reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
+				}
 			}
 			render->AddActor(reader->GetSurfaceActor());
 		}
@@ -661,7 +780,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			expoter->SaveFile(render, outfile);
 		}
 		else
-		expoter->SaveFile(render, "aaa.wrl");
+			expoter->SaveFile(render, "aaa.wrl");
 		delete expoter;
 		if ( output > 10 ) exit(0);
 	}
@@ -673,7 +792,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			expoter->SaveFile(render, outfile);
 		}
 		else
-		expoter->SaveFile(render, "aaa.x3d");
+			expoter->SaveFile(render, "aaa.x3d");
 		delete expoter;
 		if ( output > 10 ) exit(0);
 	}

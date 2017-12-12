@@ -472,6 +472,7 @@
 #pragma comment( lib, "vtkzlib-7.1.lib")
 #endif
 
+#ifndef NO_LINK_LIBS
 #ifdef _WIN64
 #ifdef _DEBUG
 #pragma comment( lib, "../../vtkFreeWrapper/util/lib/Debug/64bit/vtkWrapperLib.lib" )
@@ -483,6 +484,7 @@
 #pragma comment( lib, "../../vtkFreeWrapper/util/lib/Debug/32bit/vtkWrapperLib.lib" )
 #else
 #pragma comment( lib, "../../vtkFreeWrapper/util/lib/Release/32bit/vtkWrapperLib.lib" )
+#endif
 #endif
 #endif
 

@@ -62,6 +62,7 @@ public:
 	 * @param [in] filename エクスポートファイル名
 	 */
 	void SaveFile( vtkAlgorithmOutput* input, char* filename);
+	vtkSTLWriter*Get() { return stlWriter_; }
 };
 
 class gmr_EXPORT gmrVTKExportPLY: public gmrVTKExport
@@ -81,6 +82,8 @@ public:
 	 * @param [in] filename エクスポートファイル名
 	 */
 	void SaveFile( vtkAlgorithmOutput* input, char* filename);
+	void SaveFile(vtkAlgorithmOutput* input, char* colro_name, char* filename);
+	vtkPLYWriter*Get() { return plyWriter_; }
 };
 
 class gmr_EXPORT gmrVTKExportOBJ: public gmrVTKExport
@@ -101,6 +104,8 @@ public:
 	 * @param [in] filename エクスポートファイル名
 	 */
 	void SaveFile( gmrVTKRender* renwin, char* filename);
+
+	vtkOBJExporter*Get() { return vtkExporter_; }
 };
 
 class gmr_EXPORT gmrVTKExportX3D: public gmrVTKExport

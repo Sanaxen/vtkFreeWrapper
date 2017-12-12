@@ -28,50 +28,125 @@
 int main(int argc, char** argv)
 {
 	char* folderName;
-	
+	char* outfile = NULL;
+
 	if ( argc < 2 )
 	{
 		fprintf(stderr, "usage: DICOM2BMP.exe dcm-files-folderName [-option]\n");
 		fprintf(stderr, "option\n");
-		fprintf(stderr, "-3d [isovalue]=> 3D viewer\n");
-		fprintf(stderr, "-vr [1.0] [isovalue]=> volume render.\n\tsample_distace(default 1.0)\n");
+		fprintf(stderr, "-3d => 3D viewer\n");
+		fprintf(stderr, "-vr => volume render.\n\tsample_distace(default 1.0)\n");
 		fprintf(stderr, "-bmp => slice viewer && bitmap capture\n");
-		fprintf(stderr, "-obj [isovalue]=> obj convert\n");
-		fprintf(stderr, "-stl [isovalue]=> stl convert\n");
+		fprintf(stderr, "-obj => obj convert\n");
+		fprintf(stderr, "-stl => stl convert\n");
+		fprintf(stderr, "-iso isovalue\n");
+		fprintf(stderr, "-sampe_dist sampe_dist\n");
+		fprintf(stderr, "-o filename\n");
 		fprintf(stderr, "no option => slice viewer\n");
 		return 1;
 	}
 	folderName = argv[1];
 
-	double isovalue = -1.0E32;
+#define POLYGON_VIEW			1
+#define VOLUME_VIEW				2
+#define POLYGON_VOLUME_VIEW		3
+#define BITMAP_VIEW				4
+#define EXPORT_OBJ				5
+#define EXPORT_STL				6
+#define EXPORT_WRL				7
+#define EXPORT_X3D				8
+
+	double isovalue = 0.0;// -1.0E32;
 	double sample_dist = -1.0;
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "3d") == 0  )
+
+	int export_and_view = 0;
+	int mode = -1;
+	for (int i = 2; i < argc; ++i)
+	{
+		if (strcmp("-3dvr", argv[i]) == 0)
+		{
+			mode = POLYGON_VOLUME_VIEW;
+			continue;
+		}
+		if (strcmp("-3d", argv[i]) == 0)
+		{
+			mode = POLYGON_VIEW;
+			continue;
+		}
+		if (strcmp("-vr", argv[i]) == 0)
+		{
+			mode = VOLUME_VIEW;
+			continue;
+		}
+		if (strcmp("-bmp", argv[i]) == 0)
+		{
+			mode = BITMAP_VIEW;
+			continue;
+		}
+		if (strcmp("-obj", argv[i]) == 0)
+		{
+			mode = EXPORT_OBJ;
+			continue;
+		}
+		if (strcmp("-obj-", argv[i]) == 0)
+		{
+			mode = EXPORT_OBJ;
+			export_and_view = 1;
+			continue;
+		}
+		if (strcmp("-stl", argv[i]) == 0)
+		{
+			mode = EXPORT_STL;
+			continue;
+		}
+		if (strcmp("-stl-", argv[i]) == 0)
+		{
+			mode = EXPORT_STL;
+			export_and_view = 1;
+			continue;
+		}
+		if (strcmp("-iso", argv[i]) == 0)
+		{
+			isovalue = atof(argv[i + 1]);
+			i++;
+			continue;
+		}
+		if (strcmp("-sample_dist", argv[i]) == 0)
+		{
+			sample_dist = atof(argv[i + 1]);
+			i++;
+			continue;
+		}
+		if (strcmp("-o", argv[i]) == 0)
+		{
+			outfile = argv[i + 1];
+			i++;
+			continue;
+		}
+
+	}
+
+
+	if ( mode == POLYGON_VIEW)
 	{
 		fprintf(stderr, "==> 3d viewer!!\n");
-		if (argc == 4) isovalue = atof(argv[3]);
-		DICOM_3DViewer(folderName, 0, sample_dist, isovalue);
+		DICOM_3DViewer(folderName, 0, sample_dist, isovalue, outfile);
 		return 0;
 	}
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "vr") == 0  )
+	if (mode == VOLUME_VIEW)
 	{
-		sample_dist = 1.0;
 		fprintf(stderr, "==> volume render viewer!!\n");
-		if (argc >= 4) sample_dist = atof(argv[3]);
-		if (argc == 5) isovalue = atof(argv[4]);
-		DICOM_3DViewer(folderName, 100, sample_dist, isovalue);
+		DICOM_3DViewer(folderName, 100, sample_dist, isovalue, outfile);
 		return 0;
 	}
-	if (argc >= 3 && argv[2][0] == '-' && strcmp(argv[2] + 1, "3dvr") == 0)
+	if (mode == POLYGON_VOLUME_VIEW)
 	{
-		sample_dist = 1.0;
 		fprintf(stderr, "==> volume render & 3d viewer!!\n");
-		if (argc >= 4) sample_dist = atof(argv[3]);
-		if (argc == 5) isovalue = atof(argv[4]);
-		DICOM_3DViewer(folderName, 101, sample_dist, isovalue);
+		DICOM_3DViewer(folderName, 101, sample_dist, isovalue, outfile);
 		return 0;
 	}
 
-	if ( argc == 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "bmp") == 0 )
+	if ( mode == BITMAP_VIEW)
 	{
 		fprintf(stderr, "==> bitmap!!\n");
 		DICOM2BMP(folderName);
@@ -79,55 +154,34 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "obj-") == 0 )
+	if ( mode == EXPORT_OBJ)
 	{
 		fprintf(stderr, "==> obj!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2OBJ(folderName, 1, isovalue);
-		fprintf(stderr, "==> convert obj!!\n");
-		return 0;
-	}
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "obj") == 0 )
-	{
-		fprintf(stderr, "==> obj!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2OBJ(folderName, 0, isovalue);
+		DICOM2OBJ(folderName, export_and_view, isovalue, outfile);
 		fprintf(stderr, "==> convert obj!!\n");
 		return 0;
 	}
 
-
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "stl-") == 0 )
+	if ( mode == EXPORT_STL )
 	{
 		fprintf(stderr, "==> stl!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2STL(folderName, 1, isovalue);
-		fprintf(stderr, "==> convert stl!!\n");
-		return 0;
-	}
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "stl") == 0 )
-	{
-		fprintf(stderr, "==> stl!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2STL(folderName, 0, isovalue);
+		DICOM2STL(folderName, export_and_view, isovalue, outfile);
 		fprintf(stderr, "==> convert stl!!\n");
 		return 0;
 	}
 
 
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "wrl-") == 0 )
+	if ( mode == EXPORT_WRL)
 	{
 		fprintf(stderr, "==> wrl!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2VRML(folderName, 1, isovalue);
-		fprintf(stderr, "==> convert x3d!!\n");
+		DICOM2VRML(folderName, export_and_view, isovalue, outfile);
+		fprintf(stderr, "==> convert wrl!!\n");
 		return 0;
 	}
-	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "wrl") == 0 )
+	if ( mode == EXPORT_X3D )
 	{
-		fprintf(stderr, "==> wrl!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2VRML(folderName, 0, isovalue);
+		fprintf(stderr, "==> x3d!!\n");
+		DICOM2X3D(folderName, 0, isovalue, outfile);
 		fprintf(stderr, "==> convert x3d!!\n");
 		return 0;
 	}
@@ -137,16 +191,14 @@ int main(int argc, char** argv)
 	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "x3d-") == 0 )
 	{
 		fprintf(stderr, "==> x3d!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2X3D(folderName, 1, isovalue);
+		DICOM2X3D(folderName, 1, isovalue, outfile);
 		fprintf(stderr, "==> convert x3d!!\n");
 		return 0;
 	}
 	if ( argc >= 3 && argv[2][0] == '-' && strcmp(argv[2]+1, "x3d") == 0 )
 	{
 		fprintf(stderr, "==> x3d!!\n");
-		if (argc >= 4) isovalue = atof(argv[3]);
-		DICOM2X3D(folderName, 0, isovalue);
+		DICOM2X3D(folderName, 0, isovalue, outfile);
 		fprintf(stderr, "==> convert x3d!!\n");
 		return 0;
 	}

@@ -29,5 +29,23 @@ void gmrVTKExportPLY::SaveFile( vtkAlgorithmOutput* input, char* filename)
 {
 	plyWriter_->SetFileName(filename);
 	plyWriter_->SetInputConnection(input);
+	plyWriter_->SetColorModeToDefault();
+	//plyWriter_->SetColorModeToUniformCellColor();
+	//plyWriter_->SetColorModeToUniformPointColor();
+	plyWriter_->Update();
+	plyWriter_->Write();
+}
+
+void gmrVTKExportPLY::SaveFile(vtkAlgorithmOutput* input, char* color_name, char* filename)
+{
+	plyWriter_->SetInputConnection(input);
+	plyWriter_->SetFileTypeToASCII();
+	plyWriter_->SetColorModeToDefault();
+	//plyWriter_->SetColorModeToUniformCellColor();
+	//plyWriter_->SetColorModeToUniformPointColor();
+	//plyWriter_->SetColorModeToUniformColor();
+	plyWriter_->SetArrayName(color_name);
+	plyWriter_->SetFileName(filename);
+	plyWriter_->Update();
 	plyWriter_->Write();
 }
