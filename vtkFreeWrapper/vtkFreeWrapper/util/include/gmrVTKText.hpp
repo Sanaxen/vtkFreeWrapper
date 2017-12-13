@@ -47,6 +47,24 @@ public:
 	{
 		SetText(string.c_str());
 	}
+	void SetText(double d)
+	{
+		char buf[32];
+		sprintf(buf, "%.3f", d);
+		SetText(buf);
+	}
+	void SetText(float d)
+	{
+		char buf[32];
+		sprintf(buf, "%.3f", d);
+		SetText(buf);
+	}
+	void SetText(int d)
+	{
+		char buf[32];
+		sprintf(buf, "%d", d);
+		SetText(buf);
+	}
 
 	/** •¶š—ñ‚Ì‘å‚«‚³İ’è
 	 *

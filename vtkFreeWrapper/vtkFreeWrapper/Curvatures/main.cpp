@@ -1,12 +1,11 @@
 #include "gmrVTKRender.hpp"
 #include "gmrVTKImport.hpp"
 #include "gmrVTKExport.hpp"
+#include "gmrVTKCapture.hpp"
+#include "gmrVTKText.hpp"
 
-#include <vtkCleanPolyData.h>
-#include <vtkDecimatePro.h>
-#include <vtkCurvatures.h>
-#include <vtkColorSeries.h>
-#include <vtkColorTransferFunction.h>
+
+#include "gmrVTKMeshFilter.hpp"
 
 #include "gmrVTK.hpp"
 
@@ -16,17 +15,99 @@
 #pragma comment( lib, "opengl32.lib" )
 #pragma comment( lib, "vfw32.lib")
 
+int exportVertexColorOBJ(char* filename, gmrVTKMeshFilter* meshFilter, vtkPolyDataAlgorithm* poly)
+{
+	FILE* fp = fopen(filename, "w");
+	if (fp == NULL) return -1;
+
+	double opacity = meshFilter->GetPolyActor()->GetProperty()->GetOpacity();
+	vtkUnsignedCharArray* color_array = meshFilter->GetPolyMapper()->MapScalars(opacity);
+
+	//vtkUnsignedCharArray* color_array = Mapper->GetColorMapColors();
+	int comp = color_array->GetNumberOfComponents();
+
+	printf("GetNumberOfComponents:%d Name:[%s]\n", comp, color_array->GetName());
+	printf("GetNumberOfValues:%lld %I64d\n", color_array->GetNumberOfValues(), color_array->GetNumberOfValues() / comp);
+	//for (int i = 0; i < color_array->GetNumberOfValues(); i++)
+	//{
+	//	printf("%d ", color_array->GetValue(i));
+	//}
+
+
+	vtkSmartPointer<vtkPoints> vertices = poly->GetOutput()->GetPoints();
+	vtkSmartPointer<vtkDataArray> verticesArray = vertices->GetData();
+
+	long long numberOfVertices = vertices->GetNumberOfPoints();
+	printf("numberOfVertices:%I64d\n", numberOfVertices);
+
+	if (comp >= 3 && numberOfVertices == color_array->GetNumberOfValues() / comp)
+	{
+		for (int i = 0; i < numberOfVertices; i++)
+		{
+			double x = verticesArray->GetComponent(i, 0);
+			double y = verticesArray->GetComponent(i, 1);
+			double z = verticesArray->GetComponent(i, 2);
+			fprintf(fp, "v %f %f %f", x, y, z);
+			fprintf(fp, " %.3f %.3f %.3f\n",
+				color_array->GetComponent(i, 0),
+				color_array->GetComponent(i, 1),
+				color_array->GetComponent(i, 2));
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numberOfVertices; i++)
+		{
+			double x = verticesArray->GetComponent(i, 0);
+			double y = verticesArray->GetComponent(i, 1);
+			double z = verticesArray->GetComponent(i, 2);
+			fprintf(fp, "v %f %f %f\n", x, y, z);
+		}
+	}
+	int  numberOfFaces = poly->GetOutput()->GetNumberOfCells();
+
+	for (int i = 0; i < numberOfFaces; i++)
+	{
+		vtkSmartPointer<vtkIdList> face = vtkSmartPointer<vtkIdList>::New();
+		poly->GetOutput()->GetCellPoints(i, face);
+
+		if (face->GetId(0) == face->GetId(1) || face->GetId(0) == face->GetId(2) || face->GetId(2) == face->GetId(1))
+		{
+			continue;
+		}
+		int f = face->GetNumberOfIds();
+		if (f < 3)
+		{
+			printf("skipp Faces with fewer than 3 vertices.\n");
+			continue;
+		}
+		fprintf(fp, "f");
+		for (int j = 0; j < f; j++)
+		{
+			fprintf(fp, " %I64d", face->GetId(j) + 1);
+		}
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
+
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 2)
 	{
-		printf("Curvatures obj_file [-t mean|gauss|max|min -range min max] -o output\n");
+		printf("Curvatures obj_file [-t mean|gauss|max|min -range min max -cs color_scheme -no_render] -o output\n");
 		return -99;
 	}
 	vtkObject::SetGlobalWarningDisplay(0);
 	
-	int type = 0;
+	std::string type = "";
 	int scalarRange_set = 0;
+	int scheme = 15;
+	int no_render = 0;
+	int render_only = 0;
+
 	double scalarRange[2];
 	char* file1 = NULL;
 	char* output = NULL;
@@ -35,16 +116,36 @@ int main(int argc, char** argv)
 	{
 		if (strcmp(argv[i], "-t") == 0)
 		{
-			if (strcmp("mean", argv[i + 1]) == 0) type = 0;
-			if (strcmp("gauss", argv[i + 1]) == 0) type = 1;
-			if (strcmp("max", argv[i + 1]) == 0) type = 2;
-			if (strcmp("min", argv[i + 1]) == 0) type = 3;
+			if (strcmp("mean", argv[i + 1]) == 0) type = argv[i + 1];
+			if (strcmp("gauss", argv[i + 1]) == 0) type = argv[i + 1];
+			if (strcmp("max", argv[i + 1]) == 0) type = argv[i + 1];
+			if (strcmp("min", argv[i + 1]) == 0) type = argv[i + 1];
 			i++;
 			continue;
 		}
 		if (strcmp(argv[i], "-o") == 0)
 		{
 			output = argv[i + 1];
+			i++;
+			continue;
+		}
+		else if (strcmp(argv[i], "-no_render") == 0)
+		{
+			no_render = 1;
+			render_only = 0;
+		}
+		else if (strcmp(argv[i], "-render_only") == 0)
+		{
+			no_render = 0;
+			render_only = 1;
+		}
+		else if (strcmp(argv[i], "-cs") == 0)
+		{
+			scheme = atoi(argv[i + 1]);
+			if (scheme < 0 || scheme > 60)
+			{
+				scheme = 15;
+			}
 			i++;
 			continue;
 		}
@@ -55,6 +156,11 @@ int main(int argc, char** argv)
 			i++;
 			scalarRange[1] = atof(argv[i + 1]);
 			i++;
+			if (scalarRange[0] == scalarRange[1])
+			{
+				scalarRange_set = 0;
+				printf("scalarRange auto!!\n");
+			}
 			continue;
 		}
 		else if (file1 == NULL) file1 = argv[i];
@@ -71,135 +177,78 @@ int main(int argc, char** argv)
 	gmrVTKImportOBJ* polygon1 = new gmrVTKImportOBJ(file1);
 	polygon1->Get()->Update();
 
-	vtkSmartPointer<vtkCleanPolyData> clean1 = vtkSmartPointer<vtkCleanPolyData>::New();
-	clean1->SetInputConnection(polygon1->Get()->GetOutputPort());
-	clean1->SetTolerance(1.0E-8);
-	clean1->PointMergingOn();
-	clean1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
-	clean1->Update();
-	if (clean1->GetErrorCode())
+	gmrVTKMeshFilter* meshFilter = new gmrVTKMeshFilter;
+
+	int stat = 0;
+	meshFilter->SetPoly(polygon1->Get());
+	vtkSmartPointer<vtkCurvatures> curvaturesFilter = meshFilter->curvaturesFilter(type, scalarRange, scheme, stat);
+	if (stat != 0)
 	{
-		printf("clean error.\n");
-		return -2;
+		return stat;
 	}
 
-	vtkSmartPointer<vtkCurvatures> curvaturesFilter =
-		vtkSmartPointer<vtkCurvatures>::New();
-	curvaturesFilter->SetInputConnection(clean1->GetOutputPort());
-	if (type == 3) curvaturesFilter->SetCurvatureTypeToMinimum();
-	if (type == 2) curvaturesFilter->SetCurvatureTypeToMaximum();
-	if ( type == 1 ) curvaturesFilter->SetCurvatureTypeToGaussian();
-	if ( type == 0 ) curvaturesFilter->SetCurvatureTypeToMean();
-	curvaturesFilter->Update();
-	if (curvaturesFilter->GetErrorCode())
+	gmrVTKRender* render = new gmrVTKRender();
+
+	render->AddActor(meshFilter->GetPolyActor());
+
+	gmrVTKText* text2d = new gmrVTKText;
+
+	char testbuf[128];
+	sprintf(testbuf, "max:%.3f min:%.3f ave:%.3f", meshFilter->max_curvature, meshFilter->min_curvature, meshFilter->av_curvature / curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfTuples());
+
+	text2d->SetText(testbuf);
+	text2d->SetColor(0.0, 0.0, 0.0);
+	text2d->SetSize(15);
+	text2d->SetPosition(20, 20);
+	render->AddActor(text2d->GetActor());
+
+	printf("render_only:%d\n", render_only);
+	if (!render_only)
 	{
-		printf("curvatures error.\n");
-		return -2;
+		int stat = exportVertexColorOBJ(output, meshFilter, curvaturesFilter);
+
+		if (stat != 0)
+		{
+			gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
+			char* p = strstr(output, ".obj");
+			if (p) *p = '\0';
+			p = strstr(output, ".OBJ");
+			if (p) *p = '\0';
+
+			expoter->SaveFile(render, output);
+			delete expoter;
+		}
+
+		//PLY export
+		if (1)
+		{
+			gmrVTKExportPLY* plyexpoter = new gmrVTKExportPLY();
+			char* p = strstr(output, ".obj");
+			if (p) *p = '\0';
+			p = strstr(output, ".OBJ");
+			if (p) *p = '\0';
+
+			std::string debug_file = output;
+			debug_file += "_debug";
+
+			char array_name[32];
+			strcpy(array_name, curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetName());
+
+			int comp = curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfComponents();
+
+			printf("GetNumberOfComponents:%d Name:[%s]\n", comp, array_name);
+
+			plyexpoter->Get()->SetArrayName(array_name);
+			plyexpoter->Get()->SetLookupTable(meshFilter->GetPolyMapper()->GetLookupTable());
+			//plyexpoter->SaveFile(Mapper->GetOutputPort(), array_name, output);
+			plyexpoter->SaveFile(curvaturesFilter->GetOutputPort(), array_name, (char*)debug_file.c_str());
+			//plyexpoter->SaveFile(polygon1->Get()->GetOutputPort(), color_array->GetName(), output);
+			delete plyexpoter;
+		}
 	}
+	if (!no_render || render_only)	render->DefaultRun("curvature");
 
-	if (!scalarRange_set)
-	{
-		curvaturesFilter->GetOutput()->GetScalarRange(scalarRange);
-	}
+	delete meshFilter;
+	delete polygon1;
 
-
-	int scheme = 16;
-
-	vtkSmartPointer<vtkColorSeries> colorSeries =
-		vtkSmartPointer<vtkColorSeries>::New();
-	colorSeries->SetColorScheme(scheme);
-	std::cout << "Using color scheme #: "
-		<< colorSeries->GetColorScheme() << " is "
-		<< colorSeries->GetColorSchemeName() << std::endl;
-
-	vtkSmartPointer<vtkColorTransferFunction> lut =
-		vtkSmartPointer<vtkColorTransferFunction>::New();
-	lut->SetColorSpaceToHSV();
-
-	int numColors = colorSeries->GetNumberOfColors();
-	for (int i = 0; i < numColors; i++)
-	{
-		vtkColor3ub color = colorSeries->GetColor(i);
-		double dColor[3];
-		dColor[0] = static_cast<double> (color[0]) / 255.0;
-		dColor[1] = static_cast<double> (color[1]) / 255.0;
-		dColor[2] = static_cast<double> (color[2]) / 255.0;
-		double t = scalarRange[0] + (scalarRange[1] - scalarRange[0])
-			/ (numColors - 1) * i;
-		lut->AddRGBPoint(t, dColor[0], dColor[1], dColor[2]);
-	}
-
-
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-
-	Mapper->SetInputConnection(curvaturesFilter->GetOutputPort());
-	Mapper->SetLookupTable(lut);
-	Mapper->SetScalarRange(scalarRange);
-
-	Mapper->ScalarVisibilityOn();
-	Mapper->SetScalarModeToUsePointData();
-	Mapper->SetColorModeToMapScalars();
-
-	vtkSmartPointer<vtkActor> Actor = vtkSmartPointer<vtkActor>::New();
-	Actor->SetMapper(Mapper);
-
-	vtkSmartPointer<vtkScalarBarActor> scalarBar =
-		vtkSmartPointer<vtkScalarBarActor>::New();
-	scalarBar->SetLookupTable(Mapper->GetLookupTable());
-	scalarBar->SetTitle(
-		curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetName());
-	scalarBar->SetNumberOfLabels(5);
-
-	gmrVTKRender* render = new gmrVTKRender;
-	render->GetRenderer()->AddViewProp(Actor);
-	render->GetRenderer()->AddActor2D(scalarBar);
-
-	curvaturesFilter->Update();
-	gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
-	char* p = strstr(output, ".obj");
-	if (p) *p = '\0';
-	p = strstr(output, ".OBJ");
-	if (p) *p = '\0';
-
-	expoter->SaveFile(render, output);
-	delete expoter;
-
-	gmrVTKExportPLY* plyexpoter = new gmrVTKExportPLY();
-	p = strstr(output, ".ply");
-	if (p) *p = '\0';
-	p = strstr(output, ".PLY");
-	if (p) *p = '\0';
-
-	//int size = curvaturesFilter->GetOutput()->GetNumberOfVerts();
-	//vtkSmartPointer<vtkUnsignedCharArray>
-	//color_array = vtkSmartPointer<vtkUnsignedCharArray>::New();
-	//color_array->SetName("RGB");
-	//color_array->SetNumberOfComponents(3);
-	//color_array->SetNumberOfTuples(size);
-	//for (int i = 0; i < size; i++)
-	//{
-	//	vtkDataArray* q = curvaturesFilter->GetPolyDataInput(0)->GetPointData()->GetScalars();
-	//	color_array->SetValue(3 * i + 0, q[i].));
-	//}
-	double opacity = Actor->GetProperty()->GetOpacity();
-	vtkUnsignedCharArray* color_array = Mapper->MapScalars(opacity);
-	//vtkUnsignedCharArray* color_array = Mapper->GetColorMapColors();
-	int comp = color_array->GetNumberOfComponents();
-
-	printf("GetNumberOfComponents:%d\n", comp);
-
-	char array_name[16];
-	strcpy(array_name, "Colors");
-
-	color_array->SetName(array_name);
-
-	plyexpoter->Get()->SetArrayName(array_name);
-	//plyexpoter->Get()->SetLookupTable(Mapper->GetLookupTable());
-	//plyexpoter->SaveFile(Mapper->GetOutputPort(), array_name, output);
-	//plyexpoter->SaveFile(curvaturesFilter->GetOutputPort(), array_name, output);
-	plyexpoter->SaveFile(polygon1->Get()->GetOutputPort(), array_name, output);
-	delete plyexpoter;
-	
-
-	render->DefaultRun();
 }

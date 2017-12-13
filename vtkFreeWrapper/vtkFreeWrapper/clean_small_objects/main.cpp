@@ -16,14 +16,12 @@ int main(int argc, char** argv)
 {
 	if (argc < 2)
 	{
-		printf("smooth obj_file [ -a angle( angle < edge exists) -f factor(> 0 & < 1) -i Iterations ] -o output\n");
+		printf("clean_small_objects obj_file [-r ratio (0..1)] -o output\n");
 		return -99;
 	}
 	vtkObject::SetGlobalWarningDisplay(0);
 	
-	int iter = 1;
-	double f = 0.05;
-	double a = 25.0;	//deg
+	double r = 0.005;
 	char* file1 = NULL;
 	char* output = NULL;
 
@@ -35,21 +33,9 @@ int main(int argc, char** argv)
 			i++;
 			continue;
 		}
-		else if (strcmp(argv[i], "-a") == 0)
+		else if (strcmp(argv[i], "-r") == 0)
 		{
-			a = atof(argv[i + 1]);
-			i++;
-			continue;
-		}
-		else if (strcmp(argv[i], "-f") == 0)
-		{
-			f = atof(argv[i + 1]);
-			i++;
-			continue;
-		}
-		else if (strcmp(argv[i], "-i") == 0)
-		{
-			iter = atoi(argv[i + 1]);
+			r = atof(argv[i + 1]);
 			i++;
 			continue;
 		}
@@ -59,13 +45,17 @@ int main(int argc, char** argv)
 	{
 		return -1;
 	}
-	if (iter <= 0)
-	{
-		return -2;
-	}
 	if (output == NULL)
 	{
 		return -3;
+	}
+	if (r <= 0)
+	{
+		return -4;
+	}
+	if (r >= 1)
+	{
+		return -5;
 	}
 
 	gmrVTKImportOBJ* polygon1 = new gmrVTKImportOBJ(file1);
@@ -76,29 +66,22 @@ int main(int argc, char** argv)
 	meshFilter->SetPoly(polygon1->Get());
 
 	int stat;
-	vtkSmartPointer<vtkSmoothPolyDataFilter> smooth = meshFilter->SmoothFilter(iter, a, f, stat);
+	vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = meshFilter->connectivityFilter(r, stat);
 	if (stat != 0)
 	{
-		printf("smooth error.\n");
 		return stat;
 	}
-	vtkSmartPointer<vtkCleanPolyData> clean1 = meshFilter->CleanPoly(smooth->GetOutputPort(), stat);
+	vtkSmartPointer<vtkCleanPolyData> clean1 = meshFilter->CleanPoly(connectivityFilter->GetOutputPort(), stat);
 	if (stat != 0)
 	{
-		printf("clean error.\n");
 		return stat;
 	}
 
-
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = meshFilter->GetPolyMapper();
-
-	Mapper->SetInputConnection(clean1->GetOutputPort());
-
-	vtkSmartPointer<vtkActor> Actor = meshFilter->GetPolyActor();
-	Actor->SetMapper(Mapper);
+	meshFilter->GetPolyMapper()->SetInputConnection(clean1->GetOutputPort());
+	meshFilter->GetPolyActor()->SetMapper(meshFilter->GetPolyMapper());
 
 	gmrVTKRender* render = new gmrVTKRender;
-	render->GetRenderer()->AddViewProp(Actor);
+	render->GetRenderer()->AddViewProp(meshFilter->GetPolyActor());
 
 
 	gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
@@ -109,4 +92,8 @@ int main(int argc, char** argv)
 
 	expoter->SaveFile(render, output);
 	delete expoter;
+
+	delete meshFilter;
+	delete polygon1;
+
 }

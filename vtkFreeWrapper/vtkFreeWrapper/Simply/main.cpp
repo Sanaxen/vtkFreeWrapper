@@ -2,8 +2,7 @@
 #include "gmrVTKImport.hpp"
 #include "gmrVTKExport.hpp"
 
-#include <vtkCleanPolyData.h>
-#include <vtkDecimatePro.h>
+#include "gmrVTKMeshFilter.hpp"
 
 #include "gmrVTK.hpp"
 
@@ -69,38 +68,31 @@ int main(int argc, char** argv)
 	gmrVTKImportOBJ* polygon1 = new gmrVTKImportOBJ(file1);
 	polygon1->Get()->Update();
 
-	vtkSmartPointer<vtkDecimatePro> decimator1 =
-		vtkDecimatePro::New();
-	decimator1->SetInputData(polygon1->Get()->GetOutput());
-	decimator1->SetTargetReduction(d);
-	decimator1->SetPreserveTopology(1);
-	decimator1->SetFeatureAngle(a);
-	decimator1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
-	decimator1->Update();
-	if (decimator1->GetErrorCode())
+	gmrVTKMeshFilter* meshFilter = new gmrVTKMeshFilter;
+
+	meshFilter->SetPoly(polygon1->Get());
+
+	int stat;
+	vtkSmartPointer<vtkDecimatePro> decimator1 = meshFilter->decimator(d, a, stat);
+
+	if (stat != 0)
 	{
 		printf("decimator error.\n");
-		return -2;
+		return stat;
 	}
-
-	vtkSmartPointer<vtkCleanPolyData> clean1 = vtkSmartPointer<vtkCleanPolyData>::New();
-	clean1->SetInputConnection(decimator1->GetOutputPort());
-	clean1->SetTolerance(1.0E-8);
-	clean1->PointMergingOn();
-	clean1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
-	clean1->Update();
-	if (clean1->GetErrorCode())
+	vtkSmartPointer<vtkCleanPolyData> clean1 = meshFilter->CleanPoly(decimator1->GetOutputPort(), stat);
+	if (stat != 0)
 	{
 		printf("clean error.\n");
-		return -2;
+		return stat;
 	}
 
 
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	vtkSmartPointer<vtkPolyDataMapper> Mapper = meshFilter->GetPolyMapper();
 
 	Mapper->SetInputConnection(clean1->GetOutputPort());
 
-	vtkSmartPointer<vtkActor> Actor = vtkSmartPointer<vtkActor>::New();
+	vtkSmartPointer<vtkActor> Actor = meshFilter->GetPolyActor();
 	Actor->SetMapper(Mapper);
 
 	gmrVTKRender* render = new gmrVTKRender;
@@ -115,4 +107,8 @@ int main(int argc, char** argv)
 
 	expoter->SaveFile(render, output);
 	delete expoter;
+
+	delete meshFilter;
+	delete polygon1;
+
 }

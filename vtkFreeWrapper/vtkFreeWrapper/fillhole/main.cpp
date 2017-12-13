@@ -2,9 +2,7 @@
 #include "gmrVTKImport.hpp"
 #include "gmrVTKExport.hpp"
 
-#include <vtkCleanPolyData.h>
-#include <vtkDecimatePro.h>
-#include <vtkFillHolesFilter.h>
+#include "gmrVTKMeshFilter.hpp"
 
 #include "gmrVTK.hpp"
 
@@ -59,52 +57,27 @@ int main(int argc, char** argv)
 	gmrVTKImportOBJ* polygon1 = new gmrVTKImportOBJ(file1);
 	polygon1->Get()->Update();
 
-	vtkSmartPointer<vtkPolyData> input =
-		vtkSmartPointer<vtkPolyData>::New();
-	input->ShallowCopy(polygon1->Get()->GetOutput());
+	gmrVTKMeshFilter* meshFilter = new gmrVTKMeshFilter;
 
+	meshFilter->SetPoly(polygon1->Get());
 
-	vtkSmartPointer<vtkFillHolesFilter> fillholes =
-		vtkFillHolesFilter::New();
-	fillholes->SetInputData(polygon1->Get()->GetOutput());
-	fillholes->SetHoleSize(s);
-	fillholes->Update();
-	if (fillholes->GetErrorCode())
+	int stat;
+	vtkSmartPointer<vtkFillHolesFilter> fillholes = meshFilter->FillHolesFilte(s, stat);
+	if (stat != 0)
 	{
-		printf("Fill Holes error.\n");
-		return -2;
+		return stat;
+	}
+	vtkSmartPointer<vtkCleanPolyData> clean1 = meshFilter->CleanPoly(fillholes->GetOutputPort(), stat);
+	if (stat != 0)
+	{
+		return stat;
 	}
 
-	// Make the triangle windong order consistent
-	vtkSmartPointer<vtkPolyDataNormals> normals =
-		vtkSmartPointer<vtkPolyDataNormals>::New();
-	normals->SetInputConnection(fillholes->GetOutputPort());
-	normals->ConsistencyOn();
-	normals->SplittingOff();
-	normals->Update();
-
-	// Restore the original normals
-	normals->GetOutput()->GetPointData()->
-		SetNormals(input->GetPointData()->GetNormals());
-
-	vtkSmartPointer<vtkCleanPolyData> clean1 = vtkSmartPointer<vtkCleanPolyData>::New();
-	clean1->SetInputConnection(normals->GetOutputPort());
-	clean1->SetTolerance(1.0E-8);
-	clean1->PointMergingOn();
-	clean1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
-	clean1->Update();
-	if (clean1->GetErrorCode())
-	{
-		printf("clean error.\n");
-		return -2;
-	}
-
-
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	vtkSmartPointer<vtkPolyDataMapper> Mapper = meshFilter->GetPolyMapper();
 
 	Mapper->SetInputConnection(clean1->GetOutputPort());
 
-	vtkSmartPointer<vtkActor> Actor = vtkSmartPointer<vtkActor>::New();
+	vtkSmartPointer<vtkActor> Actor = meshFilter->GetPolyActor();
 	Actor->SetMapper(Mapper);
 
 	gmrVTKRender* render = new gmrVTKRender;
@@ -119,4 +92,7 @@ int main(int argc, char** argv)
 
 	expoter->SaveFile(render, output);
 	delete expoter;
+
+	delete meshFilter;
+	delete polygon1;
 }

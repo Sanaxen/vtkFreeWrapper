@@ -142,18 +142,21 @@ void gmrVTKRender::MouseInteractionStart()
 	iren_->Start();
 }
 
-void gmrVTKRender::Run()
+void gmrVTKRender::Run(char* title)
 {
 	ren_->SetBackground(BackgroundColor_[0], BackgroundColor_[1], BackgroundColor_[2]);
 
 	// render an image (lights and cameras are created automatically)
 	renWin_->SetSize(Size_[0],Size_[1]);
 	renWin_->Render();
+	if (title) renWin_->SetWindowName(title);
+
 }
 
-void gmrVTKRender::DefaultRun()
+void gmrVTKRender::DefaultRun(char* title)
 {
 	Run();
+	if (title) renWin_->SetWindowName(title);
 	MouseInteractionStart();
 }
 

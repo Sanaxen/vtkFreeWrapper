@@ -705,20 +705,20 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			//}
 			//else
 			{
-			reader->GetSurfaceActor()->GetProperty()->SetColor(240. / 255., 217. / 255., 202. / 255.);
-			reader->GetSurfaceActor()->GetProperty()->SetSpecular(0.2);
-			
-			if (reader->IsoValue() > 50.0)
-			{
+				reader->GetSurfaceActor()->GetProperty()->SetColor(240. / 255., 217. / 255., 202. / 255.);
+				reader->GetSurfaceActor()->GetProperty()->SetSpecular(0.2);
+
+				if (reader->IsoValue() > 50.0)
+				{
 					reader->GetSurfaceActor()->GetProperty()->SetColor(227. / 255., 114. / 255., 69. / 255.);
-			}
-			if (reader->IsoValue() > 100.0)
-			{
-				reader->GetSurfaceActor()->GetProperty()->SetColor(223. / 255., 135. / 255., 113. / 255.);
-			}
-			if (reader->IsoValue() > 200.0)
-			{
-				reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
+				}
+				if (reader->IsoValue() > 100.0)
+				{
+					reader->GetSurfaceActor()->GetProperty()->SetColor(223. / 255., 135. / 255., 113. / 255.);
+				}
+				if (reader->IsoValue() > 200.0)
+				{
+					reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
 				}
 			}
 			render->AddActor(reader->GetSurfaceActor());
@@ -854,7 +854,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	MyCallbackPick* callback = MyCallbackPick::New();
 	render->AddCallback(vtkCommand::LeftButtonPressEvent, callback);
 	picker_flag = 0;
-	render->DefaultRun();
+	render->DefaultRun("DICOM");
 	
 }
 

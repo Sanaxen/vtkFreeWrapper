@@ -99,6 +99,17 @@
 #include "vtkVRMLExporter.h"
 #include "vtkVRMLImporter.h"
 
+#include <vtkCleanPolyData.h>
+#include <vtkDecimatePro.h>
+#include <vtkPolyDataConnectivityFilter.h>
+
+#include <vtkCurvatures.h>
+#include <vtkColorSeries.h>
+#include <vtkColorTransferFunction.h>
+
+#include <vtkFillHolesFilter.h>
+#include <vtkSmoothPolyDataFilter.h>
+
 #include "gmrVTKDefs.hpp"
 
 //#include "vtkAutoInit.h"

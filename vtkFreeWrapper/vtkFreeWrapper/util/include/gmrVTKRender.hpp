@@ -149,7 +149,7 @@ public:
 	/** レンダリング開始
 	 *
 	 */
-	void Run();
+	void Run(char* title=NULL);
 	
 
 	/** マウスインタラクションの開始
@@ -161,7 +161,7 @@ public:
 	/** レンダリング開始
 	 *  - マウスインタラクション在り
 	 */
-	void DefaultRun();
+	void DefaultRun(char* title=NULL);
 
 
 	/** Picker使用
