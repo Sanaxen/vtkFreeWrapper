@@ -151,26 +151,22 @@ vtkSmartPointer<vtkCurvatures> gmrVTKMeshFilter::curvaturesFilter(std::string& t
 	}
 
 
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = GetPolyMapper();
+	GetPolyMapper()->SetInputConnection(curvaturesFilter->GetOutputPort());
+	GetPolyMapper()->SetLookupTable(lut);
+	GetPolyMapper()->SetScalarRange(scalarRange);
 
-	Mapper->SetInputConnection(curvaturesFilter->GetOutputPort());
-	Mapper->SetLookupTable(lut);
-	Mapper->SetScalarRange(scalarRange);
+	GetPolyMapper()->ScalarVisibilityOn();
+	GetPolyMapper()->SetScalarModeToUsePointData();
+	GetPolyMapper()->SetColorModeToMapScalars();
+	GetPolyMapper()->Update();
 
-	Mapper->ScalarVisibilityOn();
-	Mapper->SetScalarModeToUsePointData();
-	Mapper->SetColorModeToMapScalars();
-	Mapper->Update();
+	GetPolyActor()->SetMapper(GetPolyMapper());
 
-	vtkSmartPointer<vtkActor> Actor = GetPolyActor();
-	Actor->SetMapper(Mapper);
-
-	vtkSmartPointer<vtkScalarBarActor> scalarBar =
-		vtkSmartPointer<vtkScalarBarActor>::New();
-	scalarBar->SetLookupTable(Mapper->GetLookupTable());
-	scalarBar->SetTitle(
+	curvatures_scalarBar_ =	vtkSmartPointer<vtkScalarBarActor>::New();
+	curvatures_scalarBar_->SetLookupTable(GetPolyMapper()->GetLookupTable());
+	curvatures_scalarBar_->SetTitle(
 		curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetName());
-	scalarBar->SetNumberOfLabels(5);
+	curvatures_scalarBar_->SetNumberOfLabels(5);
 
 	curvaturesFilter->Update();
 	printf("%d\n", curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfComponents());

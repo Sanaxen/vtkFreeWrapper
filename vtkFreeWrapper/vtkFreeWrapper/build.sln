@@ -27,6 +27,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Curvatures", "Curvatures\Cu
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fillhole", "fillhole\fillhole\fillhole.vcxproj", "{DB1A37A4-BC45-4026-8AC6-B6B25E6CFEC6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "obj_to_ply", "obj_to_ply\obj_to_ply\obj_to_ply.vcxproj", "{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -131,6 +133,14 @@ Global
 		{DB1A37A4-BC45-4026-8AC6-B6B25E6CFEC6}.Release|Win32.Build.0 = Release|Win32
 		{DB1A37A4-BC45-4026-8AC6-B6B25E6CFEC6}.Release|x64.ActiveCfg = Release|x64
 		{DB1A37A4-BC45-4026-8AC6-B6B25E6CFEC6}.Release|x64.Build.0 = Release|x64
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Debug|Win32.Build.0 = Debug|Win32
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Debug|x64.ActiveCfg = Debug|x64
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Debug|x64.Build.0 = Debug|x64
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Release|Win32.ActiveCfg = Release|Win32
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Release|Win32.Build.0 = Release|Win32
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Release|x64.ActiveCfg = Release|x64
+		{7C96914E-3F35-4E7E-A1B9-46B885A69F2E}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

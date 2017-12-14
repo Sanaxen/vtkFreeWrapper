@@ -73,15 +73,11 @@ int main(int argc, char** argv)
 		return stat;
 	}
 
-	vtkSmartPointer<vtkPolyDataMapper> Mapper = meshFilter->GetPolyMapper();
-
-	Mapper->SetInputConnection(clean1->GetOutputPort());
-
-	vtkSmartPointer<vtkActor> Actor = meshFilter->GetPolyActor();
-	Actor->SetMapper(Mapper);
+	meshFilter->GetPolyMapper()->SetInputConnection(clean1->GetOutputPort());
+	meshFilter->GetPolyActor()->SetMapper(meshFilter->GetPolyMapper());
 
 	gmrVTKRender* render = new gmrVTKRender;
-	render->GetRenderer()->AddViewProp(Actor);
+	render->GetRenderer()->AddViewProp(meshFilter->GetPolyActor());
 
 
 	gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();

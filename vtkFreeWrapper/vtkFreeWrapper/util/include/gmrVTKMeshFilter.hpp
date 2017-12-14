@@ -28,6 +28,8 @@ class gmr_EXPORT gmrVTKMeshFilter  : public gmrVTK
 	vtkSmartPointer<vtkPolyDataMapper> PolyMapper_;
 	vtkSmartPointer<vtkActor> PolyActor_;
 	vtkPolyDataAlgorithm* poly_;
+
+	vtkSmartPointer<vtkScalarBarActor> curvatures_scalarBar_;
 public:
 	gmrVTKMeshFilter();
 	virtual ~gmrVTKMeshFilter();
@@ -49,6 +51,10 @@ public:
 		return PolyActor_;
 	}
 
+	vtkSmartPointer<vtkScalarBarActor> Get_curvatures_scalarBar()
+	{
+		return curvatures_scalarBar_;
+	}
 	double min_curvature = 999999.0;
 	double max_curvature = -999999.0;
 	double av_curvature = 0.0;

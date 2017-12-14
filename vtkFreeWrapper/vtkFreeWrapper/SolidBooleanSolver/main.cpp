@@ -5,6 +5,8 @@
 #include <vtkBooleanOperationPolyDataFilter.h>
 #include <vtkCleanPolyData.h>
 #include <vtkDecimatePro.h>
+#include <vtkTransform.h>
+#include <vtkTransformFilter.h>
 
 #include "gmrVTK.hpp"
 
@@ -18,7 +20,7 @@
 
 int main(int argc, char** argv)
 {
-	//vtkObject::SetGlobalWarningDisplay(0);
+	vtkObject::SetGlobalWarningDisplay(0);
 	if (argc < 2)
 	{
 		printf("SolidBooleanSolver -[i,d,u] obj_file1 obj_file2 -o output\n");
@@ -63,26 +65,49 @@ int main(int argc, char** argv)
 	polygon1->Get()->Update();
 	polygon2->Get()->Update();
 
+	vtkSmartPointer<vtkCleanPolyData> clean1 = vtkSmartPointer<vtkCleanPolyData>::New();
+	clean1->SetInputConnection(polygon1->Get()->GetOutputPort());
+	clean1->SetTolerance(1.0E-8);
+	clean1->PointMergingOn();
+	clean1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
+	clean1->Update();
+	if (clean1->GetErrorCode())
+	{
+		printf("clean error.\n");
+		return -2;
+	}
+	vtkSmartPointer<vtkCleanPolyData> clean2 = vtkSmartPointer<vtkCleanPolyData>::New();
+	clean2->SetInputConnection(polygon2->Get()->GetOutputPort());
+	clean2->SetTolerance(1.0E-8);
+	clean2->PointMergingOn();
+	clean2->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
+	clean2->Update();
+	if (clean2->GetErrorCode())
+	{
+		printf("clean error.\n");
+		return -2;
+	}
+
 	vtkSmartPointer<vtkBooleanOperationPolyDataFilter> booleanOperation =
 		vtkSmartPointer<vtkBooleanOperationPolyDataFilter>::New();
 	
 	booleanOperation->DebugOn();
-	booleanOperation->SetTolerance(1.0e-8);
-	booleanOperation->ReorientDifferenceCellsOn();
+	booleanOperation->SetTolerance(1.0e-10);
+	//booleanOperation->ReorientDifferenceCellsOn();
 	if (booleanOperation->GetErrorCode())
 	{
 		printf("booleanOperation error.\n");
 		return -1;
 	}
 
-	if ( op == 1) booleanOperation->SetOperationToIntersection();
+	if (op == 1) booleanOperation->SetOperationToIntersection();
 	if (op == 2) booleanOperation->SetOperationToUnion();
 	if (op == 3) booleanOperation->SetOperationToDifference();
 
 	try
 	{
-		booleanOperation->SetInputData(0, polygon1->Get()->GetOutput());
-		booleanOperation->SetInputData(1, polygon2->Get()->GetOutput());
+		booleanOperation->SetInputData(0, clean1->GetOutput());
+		booleanOperation->SetInputData(1, clean2->GetOutput());
 		//booleanOperation->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
 		booleanOperation->Update();
 	}
@@ -97,18 +122,36 @@ int main(int argc, char** argv)
 		return -2;
 	}
 
-	vtkSmartPointer<vtkPolyDataMapper> booleanOperationMapper =
-		vtkSmartPointer<vtkPolyDataMapper>::New();
-
-	booleanOperationMapper->SetInputConnection(booleanOperation->GetOutputPort());
-
-	vtkSmartPointer<vtkActor> booleanOperationActor =
-		vtkSmartPointer<vtkActor>::New();
-	booleanOperationActor->SetMapper(booleanOperationMapper);
-
 	gmrVTKRender* render = new gmrVTKRender;
-	render->GetRenderer()->AddViewProp(booleanOperationActor);
-	//render->AddActor(booleanOperationActor);
+#if 10
+	try
+	{
+		vtkSmartPointer<vtkPolyDataMapper> booleanOperationMapper =
+			vtkSmartPointer<vtkPolyDataMapper>::New();
+
+		booleanOperationMapper->SetInputConnection(booleanOperation->GetOutputPort());
+		booleanOperationMapper->ScalarVisibilityOff();
+
+		vtkSmartPointer<vtkActor> booleanOperationActor =
+			vtkSmartPointer<vtkActor>::New();
+		booleanOperationActor->SetMapper(booleanOperationMapper);
+
+
+		//render->GetRenderer()->AddViewProp(booleanOperationActor);
+		render->AddActor(booleanOperationActor);
+		
+	}
+	catch (...)
+	{
+		printf("booleanOperation error.\n");
+		return -10;
+	}
+#endif
+	if (booleanOperation->GetOutput()->GetPolys()->GetNumberOfCells() == 0)
+	{
+		return -10;
+	}
+	render->DefaultRun("");
 
 
 	gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
