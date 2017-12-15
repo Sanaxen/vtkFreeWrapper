@@ -60,6 +60,7 @@ int main(int argc, char** argv)
 
 	gmrVTKImportOBJ* polygon1 = new gmrVTKImportOBJ(file1);
 	polygon1->Get()->Update();
+	printf("load end.\n");
 
 	gmrVTKMeshFilter* meshFilter = new gmrVTKMeshFilter;
 
@@ -85,12 +86,17 @@ int main(int argc, char** argv)
 
 
 	gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
-	char* p = strstr(output, ".obj");
-	if (p) *p = '\0';
-	p = strstr(output, ".OBJ");
-	if (p) *p = '\0';
+	stat = expoter->exportVertexColorOBJ(output, clean1->GetOutput(), meshFilter->GetPolyMapper(), meshFilter->GetPolyActor());
 
-	expoter->SaveFile(render, output);
+	if (stat != 0)
+	{
+		char* p = strstr(output, ".obj");
+		if (p) *p = '\0';
+		p = strstr(output, ".OBJ");
+		if (p) *p = '\0';
+
+		expoter->SaveFile(render, output);
+	}
 	delete expoter;
 
 	delete meshFilter;

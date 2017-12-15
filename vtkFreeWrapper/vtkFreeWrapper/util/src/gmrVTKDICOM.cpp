@@ -131,13 +131,12 @@ void gmrVTKDICOM::LoadImageData()
 		//connectivityFilter->Update();
 
 		//// Create final polygon mesh
-		vtkSmartPointer<vtkPolyData> mesh =
-			vtkSmartPointer<vtkPolyData>::New();
-		mesh->ShallowCopy(decimator->GetOutput());
-		std::cout << "Number of points in the final polygon: " << mesh->GetNumberOfPoints() << std::endl;
+		mesh_ =	vtkSmartPointer<vtkPolyData>::New();
+		mesh_->ShallowCopy(decimator->GetOutput());
+		std::cout << "Number of points in the final polygon: " << mesh_->GetNumberOfPoints() << std::endl;
 
 		surface_mapper_ = vtkSmartPointer<vtkPolyDataMapper>::New();
-		surface_mapper_->SetInputData(mesh);
+		surface_mapper_->SetInputData(mesh_);
 		surface_mapper_->ScalarVisibilityOff();
 		surface_actor_ = vtkSmartPointer<vtkActor>::New();
 		surface_actor_->SetMapper(surface_mapper_);

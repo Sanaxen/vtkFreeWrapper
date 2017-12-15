@@ -190,6 +190,7 @@ int main(int argc, char** argv)
 	gmrVTKRender* render = new gmrVTKRender();
 
 	render->AddActor(meshFilter->GetPolyActor());
+	render->GetRenderer()->AddViewProp(meshFilter->Get_curvatures_scalarBar());
 
 	gmrVTKText* text2d = new gmrVTKText;
 
@@ -246,7 +247,48 @@ int main(int argc, char** argv)
 			delete plyexpoter;
 		}
 	}
-	if (!no_render || render_only)	render->DefaultRun("curvature");
+	if (!no_render || render_only)
+	{
+		char testbuf[128];
+		vtkSmartPointer<vtkColorSeries> colorSeries = vtkSmartPointer<vtkColorSeries>::New();
+		colorSeries->SetColorScheme(scheme);
+		gmrVTKText* text2d = new gmrVTKText;
+
+		sprintf(testbuf, "Using color scheme[%d][%s]", colorSeries->GetColorScheme(), colorSeries->GetColorSchemeName().c_str());
+
+		render->Run();	//get Window size!!
+		int* win_size = render->GetRenderWindow()->GetScreenSize();
+		printf("%dx%d\n", win_size[0], win_size[1]);
+
+		text2d->SetText(testbuf);
+		text2d->SetColor(0.0, 0.0, 0.0);
+		text2d->SetSize(15);
+		text2d->SetPosition(10, win_size[1]-20);
+		render->AddActor(text2d->GetActor());
+
+		render->Run();
+		render->GetRenderWindow()->SetWindowName("curvature");
+
+		// Screenshot  
+		vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter =
+			vtkSmartPointer<vtkWindowToImageFilter>::New();
+		windowToImageFilter->SetInput(render->GetRenderWindow());
+		windowToImageFilter->SetMagnification(3);			//set the resolution of the output image (3 times the current resolution of vtk render window)
+		windowToImageFilter->SetInputBufferTypeToRGBA();	//also record the alpha (transparency) channel
+		windowToImageFilter->ReadFrontBufferOff();			// read from the back buffer
+		windowToImageFilter->Update();
+		vtkSmartPointer<vtkPNGWriter> writer =
+			vtkSmartPointer<vtkPNGWriter>::New();
+
+		char screenshotName[128];
+		sprintf(screenshotName, "screenshot_colorScheme%02d.png", colorSeries->GetColorScheme());
+		writer->SetFileName(screenshotName);
+		writer->SetInputConnection(windowToImageFilter->GetOutputPort());
+		writer->Write();
+
+		render->DefaultRun("curvature");
+
+	}
 
 	delete meshFilter;
 	delete polygon1;

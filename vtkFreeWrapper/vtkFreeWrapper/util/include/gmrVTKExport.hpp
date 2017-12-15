@@ -81,8 +81,7 @@ public:
 	 * @param [in] input データ->GetOutputPort()
 	 * @param [in] filename エクスポートファイル名
 	 */
-	void SaveFile( vtkAlgorithmOutput* input, char* filename);
-	void SaveFile(vtkAlgorithmOutput* input, char* colro_name, char* filename);
+	void SaveFile( vtkAlgorithmOutput* input, char* filename, char* colro_name = NULL);
 	vtkPLYWriter*Get() { return plyWriter_; }
 };
 
@@ -106,6 +105,145 @@ public:
 	void SaveFile( gmrVTKRender* renwin, char* filename);
 
 	vtkOBJExporter*Get() { return vtkExporter_; }
+
+	inline int exportVertexColorOBJ(char* filename, vtkPolyData* poly, vtkSmartPointer<vtkPolyDataMapper>& Mapper, vtkSmartPointer<vtkActor>& Actor)
+	{
+		double opacity = Actor->GetProperty()->GetOpacity();
+		vtkUnsignedCharArray* color_array = Mapper->MapScalars(opacity);
+		if (color_array == NULL)
+		{
+			return 1;
+		}
+
+		int comp = color_array->GetNumberOfComponents();
+
+		printf("GetNumberOfComponents:%d Name:[%s]\n", comp, color_array->GetName());
+		printf("GetNumberOfValues:%lld %I64d\n", color_array->GetNumberOfValues(), color_array->GetNumberOfValues() / comp);
+
+		vtkSmartPointer<vtkPoints> vertices = poly->GetPoints();
+		vtkSmartPointer<vtkDataArray> verticesArray = vertices->GetData();
+
+		long long numberOfVertices = vertices->GetNumberOfPoints();
+		printf("numberOfVertices:%I64d\n", numberOfVertices);
+
+		bool vertex_color_use = false;
+		if (comp >= 3 && numberOfVertices == color_array->GetNumberOfValues() / comp)
+		{
+			vertex_color_use = true;
+		}
+		if (!vertex_color_use)
+		{
+			return 1;
+		}
+		FILE* fp = fopen(filename, "w");
+		if (fp == NULL) return -1;
+
+		for (int i = 0; i < numberOfVertices; i++)
+		{
+			double x = verticesArray->GetComponent(i, 0);
+			double y = verticesArray->GetComponent(i, 1);
+			double z = verticesArray->GetComponent(i, 2);
+			fprintf(fp, "v %f %f %f", x, y, z);
+			fprintf(fp, " %.3f %.3f %.3f\n",
+				color_array->GetComponent(i, 0),
+				color_array->GetComponent(i, 1),
+				color_array->GetComponent(i, 2));
+		}
+		int  numberOfFaces = poly->GetNumberOfCells();
+
+		for (int i = 0; i < numberOfFaces; i++)
+		{
+			vtkSmartPointer<vtkIdList> face = vtkSmartPointer<vtkIdList>::New();
+			poly->GetCellPoints(i, face);
+
+			if (face->GetId(0) == face->GetId(1) || face->GetId(0) == face->GetId(2) || face->GetId(2) == face->GetId(1))
+			{
+				continue;
+			}
+			int f = face->GetNumberOfIds();
+			if (f < 3)
+			{
+				printf("skipp Faces with fewer than 3 vertices.\n");
+				continue;
+			}
+			fprintf(fp, "f");
+			for (int j = 0; j < f; j++)
+			{
+				fprintf(fp, " %I64d", face->GetId(j) + 1);
+			}
+			fprintf(fp, "\n");
+		}
+		fclose(fp);
+
+		return 0;
+	}
+
+	inline int exportVertexColorOBJ(char* filename, vtkPolyData* poly, vtkUnsignedCharArray* color_array)
+	{
+
+		int comp = color_array->GetNumberOfComponents();
+
+		printf("GetNumberOfComponents:%d Name:[%s]\n", comp, color_array->GetName());
+		printf("GetNumberOfValues:%lld %I64d\n", color_array->GetNumberOfValues(), color_array->GetNumberOfValues() / comp);
+
+		vtkSmartPointer<vtkPoints> vertices = poly->GetPoints();
+		vtkSmartPointer<vtkDataArray> verticesArray = vertices->GetData();
+
+		long long numberOfVertices = vertices->GetNumberOfPoints();
+		printf("numberOfVertices:%I64d\n", numberOfVertices);
+
+		bool vertex_color_use = false;
+		if (comp >= 3 && numberOfVertices == color_array->GetNumberOfValues() / comp)
+		{
+			vertex_color_use = true;
+		}
+		if (!vertex_color_use)
+		{
+			return 1;
+		}
+		FILE* fp = fopen(filename, "w");
+		if (fp == NULL) return -1;
+
+		for (int i = 0; i < numberOfVertices; i++)
+		{
+			double x = verticesArray->GetComponent(i, 0);
+			double y = verticesArray->GetComponent(i, 1);
+			double z = verticesArray->GetComponent(i, 2);
+			fprintf(fp, "v %f %f %f", x, y, z);
+			fprintf(fp, " %.3f %.3f %.3f\n",
+				color_array->GetComponent(i, 0),
+				color_array->GetComponent(i, 1),
+				color_array->GetComponent(i, 2));
+		}
+		int  numberOfFaces = poly->GetNumberOfCells();
+
+		for (int i = 0; i < numberOfFaces; i++)
+		{
+			vtkSmartPointer<vtkIdList> face = vtkSmartPointer<vtkIdList>::New();
+			poly->GetCellPoints(i, face);
+
+			if (face->GetId(0) == face->GetId(1) || face->GetId(0) == face->GetId(2) || face->GetId(2) == face->GetId(1))
+			{
+				continue;
+			}
+			int f = face->GetNumberOfIds();
+			if (f < 3)
+			{
+				printf("skipp Faces with fewer than 3 vertices.\n");
+				continue;
+			}
+			fprintf(fp, "f");
+			for (int j = 0; j < f; j++)
+			{
+				fprintf(fp, " %I64d", face->GetId(j) + 1);
+			}
+			fprintf(fp, "\n");
+		}
+		fclose(fp);
+
+		return 0;
+	}
+
 };
 
 class gmr_EXPORT gmrVTKExportX3D: public gmrVTKExport

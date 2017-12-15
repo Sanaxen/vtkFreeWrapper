@@ -18,6 +18,10 @@ MRI_VIEW_EXPORT void DICOM2OBJ(char* dcm_files_folderName, int flg, double isova
 MRI_VIEW_EXPORT void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
 MRI_VIEW_EXPORT void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
 MRI_VIEW_EXPORT void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue, char* outfile);
+
+MRI_VIEW_EXPORT int GetDICOM_3DViewer_colorScheme();
+MRI_VIEW_EXPORT void SetDICOM_3DViewer_colorScheme(int scheme);
+MRI_VIEW_EXPORT void SetDICOM_3DViewer_isoRange(double range[2]);
 };
 
 

@@ -81,6 +81,12 @@ public:
 		DiffuseColor_[1] = g;
 		DiffuseColor_[2] = b;
 	}
+	void GetDiffuseColor(double& r, double& g, double& b)
+	{
+		r = DiffuseColor_[0];
+		g = DiffuseColor_[1];
+		b = DiffuseColor_[2];
+	}
 	vtkActor* GetActor();
 
 };
@@ -202,6 +208,9 @@ public:
 	{
 		return OBJ_;
 	}
+
+	bool mat_color_use;
+	double mat_color[3];
 };
 
 /** 

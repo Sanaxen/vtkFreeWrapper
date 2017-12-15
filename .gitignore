@@ -1,0 +1,5 @@
+*.suo
+*.bak
+*.bak
+vtkFreeWrapper/vtkFreeWrapper/DICOMview/MRI_view__.cpp.bak
+*.filters

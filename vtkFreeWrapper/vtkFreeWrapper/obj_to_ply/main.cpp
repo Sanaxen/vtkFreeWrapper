@@ -64,49 +64,19 @@ int main(int argc, char** argv)
 	gmrVTKRender* render = new gmrVTKRender;
 	render->GetRenderer()->AddViewProp(Actor);
 
-	FILE* fp = fopen(file1, "r");
-	if (fp == NULL)
-	{
-		return -3;
-	}
-
 	gmrVTKExportPLY* expoter = new gmrVTKExportPLY();
-
-	vtkSmartPointer<vtkUnsignedCharArray> colors =
-		vtkSmartPointer<vtkUnsignedCharArray>::New();
-	colors->SetNumberOfComponents(3);
-	colors->SetNumberOfTuples(polygon1->Get()->GetOutput()->GetPoints()->GetNumberOfPoints());
-	colors->SetName("Colors");
-
-	int ii = 0;
-	bool vertex_color = true;
-	char buf[256];
-	while (fgets(buf, 256, fp) != NULL)
+	
+	char* vtx_color_name = NULL;
+	if (polygon1->Get()->GetOutput()->GetPointData()->GetScalars())
 	{
-		if (buf[0] != 'v') continue;
-		double x, y, z, r, g, b;
-		int n = sscanf(buf, "v %lf %lf %lf %lf %lf %lf", &x, &y, &z, &r, &g, &b);
-		if (n != 6)
-		{
-			vertex_color = false;
-			break;
-		}
-		colors->SetComponent(ii, 0, r);
-		colors->SetComponent(ii, 1, g);
-		colors->SetComponent(ii, 2, b);
-		ii++;
-	}
-	fclose(fp);
-	printf("vertex num:%d == %d\n", polygon1->Get()->GetOutput()->GetPoints()->GetNumberOfPoints(), ii);
-
-	if (vertex_color)
-	{
-		polygon1->Get()->GetOutput()->GetPointData()->SetScalars(colors);
-		expoter->SaveFile(polygon1->Get()->GetOutputPort(), "Colors", output);
+		vtx_color_name = polygon1->Get()->GetOutput()->GetPointData()->GetScalars()->GetName();
+		printf("Scalars!! [%s]\n", vtx_color_name);
 	}
 	else
 	{
-		expoter->SaveFile(polygon1->Get()->GetOutputPort(), output);
+		printf("not Scalars!!\n");
 	}
+
+	expoter->SaveFile(polygon1->Get()->GetOutputPort(), output, vtx_color_name);
 	delete expoter;
 }

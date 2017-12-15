@@ -86,6 +86,7 @@ class gmr_EXPORT gmrVTKDICOM
 	vtkSmartPointer<vtkMarchingCubes> surface_;
 	vtkSmartPointer<vtkPolyDataMapper> surface_mapper_;
 	vtkSmartPointer<vtkActor> surface_actor_;
+	vtkSmartPointer<vtkPolyData> mesh_;
 
 	//Volume polygon
 	vtkSmartPointer<vtkPolyDataMapper> skinMapper_;
@@ -131,6 +132,11 @@ public:
 	vtkSmartPointer<vtkActor>& GetSurfaceActor()
 	{
 		return surface_actor_;
+	}
+
+	vtkSmartPointer<vtkPolyData>& GetMesh()
+	{
+		return mesh_;
 	}
 
 	std::vector<_volumeColorValue> volumeColorSet;
