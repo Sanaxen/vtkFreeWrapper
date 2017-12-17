@@ -18,6 +18,7 @@ gmrVTKMeshFilter::gmrVTKMeshFilter()
 	poly_ = NULL;
 	PolyMapper_ = vtkSmartPointer<vtkPolyDataMapper>::New();
 	PolyActor_ = vtkSmartPointer<vtkActor>::New();
+	clean_tol = 1.0E-8;
 }
 
 gmrVTKMeshFilter::~gmrVTKMeshFilter()
@@ -42,7 +43,7 @@ vtkSmartPointer<vtkCleanPolyData> gmrVTKMeshFilter::CleanPoly(vtkAlgorithmOutput
 	stat = 0;
 	vtkSmartPointer<vtkCleanPolyData> clean1 = vtkSmartPointer<vtkCleanPolyData>::New();
 	clean1->SetInputConnection(poly);
-	clean1->SetTolerance(1.0E-8);
+	clean1->SetTolerance(clean_tol);
 	clean1->PointMergingOn();
 	clean1->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
 	clean1->Update();
@@ -170,7 +171,7 @@ vtkSmartPointer<vtkCurvatures> gmrVTKMeshFilter::curvaturesFilter(std::string& t
 
 	curvaturesFilter->Update();
 	printf("%d\n", curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfComponents());
-	printf("%d\n", curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfTuples());
+	printf("%I64d\n", curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfTuples());
 
 	for (int i = 0; i < curvaturesFilter->GetOutput()->GetPointData()->GetScalars()->GetNumberOfTuples(); i++)
 	{
@@ -249,6 +250,30 @@ vtkSmartPointer<vtkSmoothPolyDataFilter> gmrVTKMeshFilter::SmoothFilter(int iter
 	if (smooth->GetErrorCode())
 	{
 		printf("smooth error.\n");
+		stat = -2;
+		return NULL;
+	}
+
+	return smooth;
+}
+
+
+vtkSmartPointer<vtkWindowedSincPolyDataFilter> gmrVTKMeshFilter::WindowedSincPolyDataFilter(int iter, double featureAngle, double passBand, int& stat)
+{
+	stat = 0;
+	vtkSmartPointer<vtkWindowedSincPolyDataFilter> smooth = vtkWindowedSincPolyDataFilter::New();
+	smooth->SetInputData(poly_->GetOutput());
+	smooth->SetNumberOfIterations(iter);
+	smooth->BoundarySmoothingOff();
+	smooth->FeatureEdgeSmoothingOn();
+	smooth->SetFeatureAngle(featureAngle);
+	smooth->SetPassBand(passBand);
+	smooth->NonManifoldSmoothingOn();
+	smooth->NormalizeCoordinatesOn();
+	smooth->Update();
+	if (smooth->GetErrorCode())
+	{
+		printf("effect_relax error.\n");
 		stat = -2;
 		return NULL;
 	}

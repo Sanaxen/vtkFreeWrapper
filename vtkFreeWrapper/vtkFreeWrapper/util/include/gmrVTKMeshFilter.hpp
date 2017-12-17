@@ -29,6 +29,7 @@ class gmr_EXPORT gmrVTKMeshFilter  : public gmrVTK
 	vtkSmartPointer<vtkActor> PolyActor_;
 	vtkPolyDataAlgorithm* poly_;
 
+	double clean_tol;
 	vtkSmartPointer<vtkScalarBarActor> curvatures_scalarBar_;
 public:
 	gmrVTKMeshFilter();
@@ -59,12 +60,17 @@ public:
 	double max_curvature = -999999.0;
 	double av_curvature = 0.0;
 
+	void SetCleanTol(double tol)
+	{
+		clean_tol = tol;
+	}
 	vtkSmartPointer<vtkCleanPolyData> CleanPoly(vtkAlgorithmOutput* poly, int& stat);
 	vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter(double r, int& stat);
 	vtkSmartPointer<vtkCurvatures> curvaturesFilter(std::string& type, double scalarRange[2], int colorScheme, int& stat);
 	vtkSmartPointer<vtkFillHolesFilter> FillHolesFilte(int holesize, int& stat);
 	vtkSmartPointer<vtkDecimatePro> decimator(double target_reduction, double featureAngle, int& stat);
 	vtkSmartPointer<vtkSmoothPolyDataFilter> SmoothFilter(int iter, double featureAngle, double factor, int& stat);
+	vtkSmartPointer<vtkWindowedSincPolyDataFilter> WindowedSincPolyDataFilter(int iter, double featureAngle, double passBand, int& stat);
 
 	virtual vtkActor* GetActor();
 

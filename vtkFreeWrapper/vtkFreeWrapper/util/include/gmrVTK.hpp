@@ -109,6 +109,7 @@
 
 #include <vtkFillHolesFilter.h>
 #include <vtkSmoothPolyDataFilter.h>
+#include <vtkWindowedSincPolyDataFilter.h>
 
 #include "gmrVTKDefs.hpp"
 
