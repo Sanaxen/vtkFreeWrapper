@@ -54,6 +54,8 @@ void gmrVTKImportOBJ::LoadFile( char* filename)
 		int ii = 0;
 		bool vertex_color = true;
 		char buf[256];
+		double rgb_max = -1.0;
+		std::vector<float> color_tmp;
 		while (fgets(buf, 256, fp) != NULL)
 		{
 			if (buf[0] == 'v' && buf[1] != 'n' && buf[1] != 't')
@@ -71,18 +73,41 @@ void gmrVTKImportOBJ::LoadFile( char* filename)
 				vertex_color = false;
 				break;
 			}
-			if (r <= 1.0 && g <= 1.0 && b <= 1.0)
-			{
-				r *= 255.0;
-				g *= 255.0;
-				b *= 255.0;
-			}
+			if (rgb_max < r) rgb_max = r;
+			if (rgb_max < g) rgb_max = g;
+			if (rgb_max < b) rgb_max = b;
+			color_tmp.push_back(r);
+			color_tmp.push_back(g);
+			color_tmp.push_back(b);
 			colors->SetComponent(ii, 0, r);
 			colors->SetComponent(ii, 1, g);
 			colors->SetComponent(ii, 2, b);
 			ii++;
 		}
 		fclose(fp);
+		if (vertex_color)
+		{
+			printf("rgb_max:%f\n", rgb_max);
+		if (rgb_max > 1.0)
+		{
+			}
+			else
+			{
+			int sz = colors->GetNumberOfTuples();
+#pragma omp parallel for
+			for (int i = 0; i < sz; i++)
+			{
+					double r = color_tmp[3 * i + 0] * 255.0;
+					double g = color_tmp[3 * i + 1] * 255.0;
+					double b = color_tmp[3 * i + 2] * 255.0;
+					colors->SetComponent(i, 0, r);
+					colors->SetComponent(i, 1, g);
+					colors->SetComponent(i, 2, b);
+				}
+				color_tmp.clear();
+				color_tmp.shrink_to_fit();
+			}
+		}
 		printf("vertex num:%d == %d\n", OBJ_->GetOutput()->GetPoints()->GetNumberOfPoints(), ii);
 
 		if (vertex_color && OBJ_->GetOutput()->GetPoints()->GetNumberOfPoints() == ii)

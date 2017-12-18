@@ -111,6 +111,9 @@
 #include <vtkSmoothPolyDataFilter.h>
 #include <vtkWindowedSincPolyDataFilter.h>
 
+#include <vtkSurfaceReconstructionFilter.h>
+#include <vtkReverseSense.h>
+
 #include "gmrVTKDefs.hpp"
 
 //#include "vtkAutoInit.h"

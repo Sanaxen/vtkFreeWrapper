@@ -3,3 +3,7 @@
 *.bak
 vtkFreeWrapper/vtkFreeWrapper/DICOMview/MRI_view__.cpp.bak
 *.filters
+*.tlog
+*.log
+vtkFreeWrapper/vtkFreeWrapper/down_sampling/down_sampling/x64/Release/vc140.pdb
+*.pdb

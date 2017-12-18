@@ -280,3 +280,42 @@ vtkSmartPointer<vtkWindowedSincPolyDataFilter> gmrVTKMeshFilter::WindowedSincPol
 
 	return smooth;
 }
+
+vtkSmartPointer<vtkSurfaceReconstructionFilter> gmrVTKMeshFilter::SurfaceReconstruction(vtkSmartPointer<vtkPoints>& points)
+{
+	vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+	polydata->SetPoints(points);
+	//printf("creat PolyData\n");
+
+	// Construct the surface and create isosurface.	
+	vtkSmartPointer<vtkSurfaceReconstructionFilter> surf =
+		vtkSmartPointer<vtkSurfaceReconstructionFilter>::New();
+
+	surf->SetInputData(polydata);
+	printf("creat SurfaceReconstruction\n");
+
+	return surf;
+}
+
+vtkSmartPointer<vtkContourFilter> gmrVTKMeshFilter::SurfaceReconstructionIsoValue(vtkSmartPointer<vtkPoints>& points, double isovalue)
+{
+	vtkSmartPointer<vtkSurfaceReconstructionFilter> surf = SurfaceReconstruction(points);
+	vtkSmartPointer<vtkContourFilter> contourFilter = vtkSmartPointer<vtkContourFilter>::New();
+	contourFilter->SetInputConnection(surf->GetOutputPort());
+	contourFilter->SetValue(0, isovalue);
+	contourFilter->Update();
+	//printf("creat Contour\n");
+
+	//// Sometimes the contouring algorithm can create a volume whose gradient
+	//// vector and ordering of polygon (using the right hand rule) are
+	//// inconsistent. vtkReverseSense cures this problem.
+	//vtkSmartPointer<vtkReverseSense> reverse =
+	//	vtkSmartPointer<vtkReverseSense>::New();
+	//reverse->SetInputConnection(contourFilter->GetOutputPort());
+	//reverse->ReverseCellsOn();
+	//reverse->ReverseNormalsOn();
+	//printf("creat ReverseSense\n");
+	//meshFilter->GetPolyMapper()->SetInputConnection(reverse->GetOutputPort());
+
+	return contourFilter;
+}

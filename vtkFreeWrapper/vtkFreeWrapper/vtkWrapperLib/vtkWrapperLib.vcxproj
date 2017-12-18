@@ -173,6 +173,7 @@
     <ClCompile Include="..\util\src\gmrVTKImportPLY.cpp" />
     <ClCompile Include="..\util\src\gmrVTKImportSTL.cpp" />
     <ClCompile Include="..\util\src\gmrVTKImportVRML.cpp" />
+    <ClCompile Include="..\util\src\gmrVTKMeshFilter.cpp" />
     <ClCompile Include="..\util\src\gmrVTKOutline.cpp" />
     <ClCompile Include="..\util\src\gmrVTKPicker.cpp" />
     <ClCompile Include="..\util\src\gmrVTKPoints.cpp" />
@@ -195,6 +196,7 @@
     <ClInclude Include="..\util\include\gmrVTKImport.hpp" />
     <ClInclude Include="..\util\include\gmrVTKLIBs.hpp" />
     <ClInclude Include="..\util\include\gmrVTKLocker.hpp" />
+    <ClInclude Include="..\util\include\gmrVTKMeshFilter.hpp" />
     <ClInclude Include="..\util\include\gmrVTKOutline.hpp" />
     <ClInclude Include="..\util\include\gmrVTKPicker.hpp" />
     <ClInclude Include="..\util\include\gmrVTKPoints.hpp" />

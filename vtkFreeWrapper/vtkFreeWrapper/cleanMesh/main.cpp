@@ -58,14 +58,38 @@ int main(int argc, char** argv)
 	meshFilter->SetPoly(polygon1->Get());
 
 	meshFilter->SetCleanTol(tol);
-	printf("CleanTol:%.16f", tol);
+	printf("CleanTol:%.16f\n", tol);
+
+	vtkSmartPointer<vtkOutlineFilter> boundingBox = vtkSmartPointer<vtkOutlineFilter>::New();
+	boundingBox->SetInputConnection(polygon1->Get()->GetOutputPort());
+	boundingBox->Update();
+
+	double* bounds = boundingBox->GetOutput()->GetBounds();
+	printf("input object MinMax=(%f,%f,%f)-(%f,%f,%f)=(%f,%f,%f)!!\n", 
+		bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5],
+		(bounds[1] - bounds[0]), (bounds[3] - bounds[1]), (bounds[5] - bounds[2]));
+	
+	double di = (bounds[1] - bounds[0])*(bounds[1] - bounds[0]) + (bounds[3] - bounds[1])*(bounds[3] - bounds[1]) + (bounds[5] - bounds[2])*(bounds[5] - bounds[2]);
+	di = sqrt(di);
+
+	if (tol > di*0.05)
+	{
+		printf("tol(%.8f) Diagonal length:%.6f error!!\n", tol, di);
+		FILE* fp = fopen("cleanMesh_Error.txt", "w");
+		fprintf(fp, "input object MinMax=(%f,%f,%f)-(%f,%f,%f)=(%f,%f,%f)!!\n",
+				bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5],
+				(bounds[1] - bounds[0]), (bounds[3] - bounds[1]), (bounds[5] - bounds[2]));
+		fprintf(fp, "tol(%.8f) Diagonal length:%.6f error!!\n", tol, di);
+		fclose(fp);
+		exit(2);
+	}
 
 	int stat = 0;
 	vtkSmartPointer<vtkCleanPolyData> clean1 = meshFilter->CleanPoly(polygon1->Get()->GetOutputPort(), stat);
 	if (stat != 0)
 	{
 		printf("clean error.\n");
-		return stat;
+		exit(2);
 	}
 
 
@@ -89,4 +113,5 @@ int main(int argc, char** argv)
 		expoter->SaveFile(render, output);
 	}
 	delete expoter;
+	return 0;
 }

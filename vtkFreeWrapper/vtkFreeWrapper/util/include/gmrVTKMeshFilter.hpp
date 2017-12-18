@@ -72,6 +72,9 @@ public:
 	vtkSmartPointer<vtkSmoothPolyDataFilter> SmoothFilter(int iter, double featureAngle, double factor, int& stat);
 	vtkSmartPointer<vtkWindowedSincPolyDataFilter> WindowedSincPolyDataFilter(int iter, double featureAngle, double passBand, int& stat);
 
+	vtkSmartPointer<vtkSurfaceReconstructionFilter> SurfaceReconstruction(vtkSmartPointer<vtkPoints>& points);
+	vtkSmartPointer<vtkContourFilter> SurfaceReconstructionIsoValue(vtkSmartPointer<vtkPoints>& points, double isovalue);
+
 	virtual vtkActor* GetActor();
 
 };

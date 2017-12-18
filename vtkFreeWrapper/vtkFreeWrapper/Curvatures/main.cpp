@@ -249,6 +249,7 @@ int main(int argc, char** argv)
 	}
 	if (!no_render || render_only)
 	{
+#if 0
 		char testbuf[128];
 		vtkSmartPointer<vtkColorSeries> colorSeries = vtkSmartPointer<vtkColorSeries>::New();
 		colorSeries->SetColorScheme(scheme);
@@ -285,7 +286,7 @@ int main(int argc, char** argv)
 		writer->SetFileName(screenshotName);
 		writer->SetInputConnection(windowToImageFilter->GetOutputPort());
 		writer->Write();
-
+#endif
 		render->DefaultRun("curvature");
 
 	}
