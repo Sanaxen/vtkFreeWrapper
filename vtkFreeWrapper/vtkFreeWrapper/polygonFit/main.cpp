@@ -1,6 +1,7 @@
 #include "gmrVTKRender.hpp"
 #include "gmrVTKImport.hpp"
 #include "gmrVTKExport.hpp"
+#include "gmrVTKPoints.hpp"
 
 #include "gmrVTKMeshFilter.hpp"
 
@@ -13,28 +14,6 @@
 #pragma comment( lib, "opengl32.lib" )
 #pragma comment( lib, "vfw32.lib")
 
-int readPoints(char* xyz_fileName, vtkPoints* points, double sampling, std::mt19937& mt, std::uniform_real_distribution<double>& d_rand)
-{
-	FILE* fp = fopen(xyz_fileName, "r");
-	if (fp == NULL) return -1;
-
-	char buf[256];
-	float x, y, z;
-	int num = 0;
-	while (fgets(buf, 256, fp) != NULL)
-	{
-		sscanf(buf, "%f %f %f", &x, &y, &z);
-		if (d_rand(mt) < sampling)
-		{
-			points->InsertNextPoint(x, y, z);
-			num++;
-		}
-	}
-	fclose(fp);
-	printf("read %d points\n", num);
-
-	return 0;
-}
 
 int main(int argc, char** argv)
 {

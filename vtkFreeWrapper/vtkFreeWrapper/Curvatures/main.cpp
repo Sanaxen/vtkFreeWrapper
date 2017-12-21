@@ -267,6 +267,15 @@ int main(int argc, char** argv)
 		text2d->SetPosition(10, win_size[1]-20);
 		render->AddActor(text2d->GetActor());
 
+#if 0
+		sprintf(testbuf, "%d", colorSeries->GetColorScheme());
+		gmrVTKText* text2d0 = new gmrVTKText;
+		text2d0->SetText(testbuf);
+		text2d0->SetColor(0.0, 0.0, 0.0);
+		text2d0->SetSize(15*10);
+		text2d0->SetPosition(30, win_size[1]);
+		render->AddActor(text2d0->GetActor());
+#endif
 		render->Run();
 		render->GetRenderWindow()->SetWindowName("curvature");
 
@@ -286,6 +295,7 @@ int main(int argc, char** argv)
 		writer->SetFileName(screenshotName);
 		writer->SetInputConnection(windowToImageFilter->GetOutputPort());
 		writer->Write();
+		//exit(0);
 #endif
 		render->DefaultRun("curvature");
 

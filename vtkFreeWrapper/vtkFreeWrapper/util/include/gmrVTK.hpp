@@ -12,6 +12,8 @@
 #define _GMRVTK_HPP
 #define _CRT_SECURE_NO_DEPRECATE
 #include <iostream>
+#include <random>
+
 #include "vtkCellArray.h"
 #include "vtkQuadric.h"
 #include "vtkSampleFunction.h"
