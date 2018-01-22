@@ -13,6 +13,8 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include <iostream>
 #include <random>
+#define NOMINMAX
+#include "windows.h"
 
 #include "vtkCellArray.h"
 #include "vtkQuadric.h"

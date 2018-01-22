@@ -12,6 +12,7 @@
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkLandmarkTransform.h>
 #include <vtkVertexGlyphFilter.h>
+#include "windows.h"
 
 #define NO_LINK_LIBS
 #include "gmrVTKLIBs.hpp"
@@ -147,6 +148,20 @@ int main(int argc, char** argv)
 		FILE* fp = fopen("points_dst.xyz", "w");
 		if (fp == NULL)
 		{
+			char szFullPath[_MAX_PATH] = { '\0' };
+			char *szFilePart;
+			DWORD dwRet = GetFullPathNameA("points_dst.xyz", _MAX_PATH, szFullPath, &szFilePart);
+			if (fp == NULL)
+			{
+				printf("file open error,[%s]\n", szFullPath);
+				if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+				{
+					printf("FullPathName failed.!\n");
+				}
+			}
+		}
+		if (fp == NULL)
+		{
 			printf("%s open error.\n", output);
 			return -10;
 		}
@@ -210,6 +225,20 @@ int main(int argc, char** argv)
 	vtkSmartPointer<vtkPoints> newPoints = icpTransformFilter->GetOutput()->GetPoints();
 
 	FILE* fp_out = fopen(output, "w");
+	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(output, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp_out == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
+
 	if (fp_out == NULL)
 	{
 		printf("%s open error.\n", output);

@@ -584,6 +584,20 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	FILE* fp = fopen(colorset, "r");
 	if (fp == NULL)
 	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(colorset, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
+	if (fp == NULL)
+	{
 		printf("undefined [color.def]\n");
 	}
 	if (fp)
@@ -605,6 +619,20 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 		printf("colorset[%s]\n", colorset);
 
 		fp = fopen(colorset, "r");
+		if (fp == NULL)
+		{
+			char szFullPath[_MAX_PATH] = { '\0' };
+			char *szFilePart;
+			DWORD dwRet = GetFullPathNameA(colorset, _MAX_PATH, szFullPath, &szFilePart);
+			if (fp == NULL)
+			{
+				printf("file open error,[%s]\n", szFullPath);
+				if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+				{
+					printf("FullPathName failed.!\n");
+				}
+			}
+		}
 		if (fp)
 		{
 			printf("=>%s\n", colorset);

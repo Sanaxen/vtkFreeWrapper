@@ -136,6 +136,21 @@ public:
 			return 1;
 		}
 		FILE* fp = fopen(filename, "w");
+		if (fp == NULL)
+		{
+			char szFullPath[_MAX_PATH] = { '\0' };
+			char *szFilePart;
+			DWORD dwRet = GetFullPathNameA(filename, _MAX_PATH, szFullPath, &szFilePart);
+			if (fp == NULL)
+			{
+				printf("file open error,[%s]\n", szFullPath);
+				if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+				{
+					printf("FullPathName failed.!\n");
+				}
+			}
+		}
+
 		if (fp == NULL) return -1;
 
 		for (int i = 0; i < numberOfVertices; i++)
@@ -202,6 +217,14 @@ public:
 			return 1;
 		}
 		FILE* fp = fopen(filename, "w");
+		if (fp == NULL)
+		{
+			printf("file open error,[%s]\n", filename);
+			if (strlen(filename) >= _MAX_PATH)
+			{
+				printf("file name length to long!\n");
+			}
+		}
 		if (fp == NULL) return -1;
 
 		for (int i = 0; i < numberOfVertices; i++)

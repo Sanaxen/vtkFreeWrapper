@@ -16,9 +16,37 @@
 int readPoints(char* xyz_fileName, char* new_xyz_fileName, double sampling, std::mt19937& mt, std::uniform_real_distribution<double>& d_rand)
 {
 	FILE* fp = fopen(xyz_fileName, "r");
+	if (fp == NULL)
+	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(xyz_fileName, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
 	if (fp == NULL) return -1;
 
 	FILE* fp2 = fopen(new_xyz_fileName, "w");
+	if (fp2 == NULL)
+	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(xyz_fileName, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp2 == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
 	if (fp2 == NULL) return -1;
 
 	char buf[256];

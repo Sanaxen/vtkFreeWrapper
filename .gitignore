@@ -9,3 +9,6 @@ vtkFreeWrapper/vtkFreeWrapper/down_sampling/down_sampling/x64/Release/vc140.pdb
 *.pdb
 *.bak
 vtkFreeWrapper/vtkFreeWrapper/down_sampling/down_sampling/x64/Release/main.obj
+vtkFreeWrapper/vtkFreeWrapper/DICOMview/MRI_view__.cpp.bak
+*.bak
+*.obj

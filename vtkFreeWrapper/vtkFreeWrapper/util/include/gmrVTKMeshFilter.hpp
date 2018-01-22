@@ -83,6 +83,20 @@ public:
 inline int readPoints(char* xyz_fileName, vtkPoints* points, double sampling, std::mt19937& mt, std::uniform_real_distribution<double>& d_rand)
 {
 	FILE* fp = fopen(xyz_fileName, "r");
+	if (fp == NULL)
+	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(xyz_fileName, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
 	if (fp == NULL) return -1;
 
 	char buf[256];
