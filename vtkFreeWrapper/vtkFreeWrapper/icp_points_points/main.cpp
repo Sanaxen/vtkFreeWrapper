@@ -214,6 +214,16 @@ int main(int argc, char** argv)
 	vtkSmartPointer<vtkMatrix4x4> m = icp->GetMatrix();
 	std::cout << "The resulting matrix is: " << *m << std::endl;
 
+	{
+		ofstream outputfile("MeanDistance.txt");
+		if (!outputfile.fail())
+		{
+			outputfile << "MeanDistance:" << icp->GetMeanDistance() << std::endl;
+			outputfile << "The resulting matrix is: " << *m << std::endl;
+			outputfile.close();
+		}
+	}
+
 	//ŒvŽZ‚³‚ê‚é•ÏŠ·s—ñ‚ÍSource‚ðTarget‚É•ÏŠ·‚·‚és—ñ
 	// Transform the source points by the ICP solution
 	vtkSmartPointer<vtkTransformPolyDataFilter> icpTransformFilter =

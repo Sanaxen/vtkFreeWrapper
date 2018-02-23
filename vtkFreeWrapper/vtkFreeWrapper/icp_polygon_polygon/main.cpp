@@ -124,6 +124,8 @@ int main(int argc, char** argv)
 	icp->SetMaximumNumberOfLandmarks(sample_landmarksN);
 	icp->SetMaximumMeanDistance(tol);
 	//icp->StartByMatchingCentroidsOn();
+	icp->CheckMeanDistanceOn();
+
 	icp->Modified();
 	printf("IPC start.\n");
 	icp->Update();
@@ -134,6 +136,16 @@ int main(int argc, char** argv)
 	// Get the resulting transformation matrix (this matrix takes the source points to the target points)
 	vtkSmartPointer<vtkMatrix4x4> m = icp->GetMatrix();
 	std::cout << "The resulting matrix is: " << *m << std::endl;
+
+	{
+		ofstream outputfile("MeanDistance.txt");
+		if (!outputfile.fail())
+		{
+			outputfile << "MeanDistance:" << icp->GetMeanDistance() << std::endl;
+			outputfile << "The resulting matrix is: " << *m << std::endl;
+			outputfile.close();
+		}
+	}
 
 	//ŒvŽZ‚³‚ê‚é•ÏŠ·s—ñ‚ÍSource‚ðTarget‚É•ÏŠ·‚·‚és—ñ
 	// Transform the source points by the ICP solution

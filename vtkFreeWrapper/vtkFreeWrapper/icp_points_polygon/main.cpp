@@ -139,29 +139,40 @@ int main(int argc, char** argv)
 	icp->SetMaximumNumberOfLandmarks(sample_landmarksN);
 	icp->SetMaximumMeanDistance(tol);
 	//icp->StartByMatchingCentroidsOn();
+	icp->CheckMeanDistanceOn();
+
 	icp->Modified();
 	printf("IPC start.\n");
 	icp->Update();
 	printf("IPC end.\n");
-
 
 	//計算される変換行列はSourceをTargetに変換する行列
 	// Get the resulting transformation matrix (this matrix takes the source points to the target points)
 	vtkSmartPointer<vtkMatrix4x4> m = icp->GetMatrix();
 	std::cout << "The resulting matrix is: " << *m << std::endl;
 
+	{
+		ofstream outputfile("MeanDistance.txt");
+		if (!outputfile.fail())
+		{
+			outputfile << "MeanDistance:" << icp->GetMeanDistance() << std::endl;
+			outputfile << "The resulting matrix is: " << *m << std::endl;
+			outputfile.close();
+		}
+	}
+
 	//計算される変換行列はSourceをTargetに変換する行列
 	// Transform the source points by the ICP solution
 	vtkSmartPointer<vtkTransformPolyDataFilter> icpTransformFilter =
 		vtkSmartPointer<vtkTransformPolyDataFilter>::New();
 
-		icpTransformFilter->SetInputData(source);
+	icpTransformFilter->SetInputData(source);
 	icpTransformFilter->SetTransform(icp);
 	icpTransformFilter->Update();
 
-		vtkSmartPointer<vtkPoints> newPoints = icpTransformFilter->GetOutput()->GetPoints();
+	vtkSmartPointer<vtkPoints> newPoints = icpTransformFilter->GetOutput()->GetPoints();
 
-		FILE* fp_out = fopen(output, "w");
+	FILE* fp_out = fopen(output, "w");
 	{
 		char szFullPath[_MAX_PATH] = { '\0' };
 		char *szFilePart;
@@ -175,17 +186,17 @@ int main(int argc, char** argv)
 			}
 		}
 	}
-		if (fp_out == NULL)
-		{
-			printf("%s open error.\n", output);
-			return -10;
-		}
-		int num = newPoints->GetNumberOfPoints();
-		for (int i = 0; i < num; i++)
-		{
-			double* p = newPoints->GetPoint(i);
-			fprintf(fp_out, "%f %f %f\n", p[0], p[1], p[2]);
-		}
-		fclose(fp_out);
+	if (fp_out == NULL)
+	{
+		printf("%s open error.\n", output);
+		return -10;
+	}
+	int num = newPoints->GetNumberOfPoints();
+	for (int i = 0; i < num; i++)
+	{
+		double* p = newPoints->GetPoint(i);
+		fprintf(fp_out, "%f %f %f\n", p[0], p[1], p[2]);
+	}
+	fclose(fp_out);
 	return 0;
 }
