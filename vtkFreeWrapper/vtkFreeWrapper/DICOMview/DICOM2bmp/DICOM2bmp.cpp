@@ -13,9 +13,9 @@
 
 #ifdef _WIN64
 #ifdef _DEBUG
-#pragma comment( lib, "../../Debug/64bit/DICOMview.lib")
+#pragma comment( lib, "../../x64/Debug/DICOMview.lib")
 #else
-#pragma comment( lib, "../../Release/64bit/DICOMview.lib")
+#pragma comment( lib, "../../x64/Release/DICOMview.lib")
 #endif
 #else
 #ifdef _DEBUG
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 		fprintf(stderr, "-obj => obj convert\n");
 		fprintf(stderr, "-stl => stl convert\n");
 		fprintf(stderr, "-iso isovalue\n");
-		fprintf(stderr, "-sampe_dist sampe_dist\n");
+		fprintf(stderr, "-sample_dist sample_dist\n");
 		fprintf(stderr, "-o filename\n");
 		fprintf(stderr, "no option => slice viewer\n");
 		return 1;
@@ -148,9 +148,16 @@ int main(int argc, char** argv)
 
 	if ( mode == BITMAP_VIEW)
 	{
+		try
+		{
 		fprintf(stderr, "==> bitmap!!\n");
 		DICOM2BMP(folderName);
 		fprintf(stderr, "==> convert bitmap!!\n");
+		}
+		catch (...)
+		{
+
+		}
 		return 0;
 	}
 

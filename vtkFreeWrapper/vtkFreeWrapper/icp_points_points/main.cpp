@@ -205,6 +205,8 @@ int main(int argc, char** argv)
 	icp->SetMaximumNumberOfLandmarks(sample_landmarksN);
 	icp->SetMaximumMeanDistance(tol);
 	//icp->StartByMatchingCentroidsOn();
+	icp->CheckMeanDistanceOn();
+
 	icp->Modified();
 	printf("IPC start.\n");
 	icp->Update();

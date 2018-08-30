@@ -76,6 +76,20 @@ int main(int argc, char** argv)
 	{
 		printf("tol(%.8f) Diagonal length:%.6f error!!\n", tol, di);
 		FILE* fp = fopen("cleanMesh_Error.txt", "w");
+		if (fp == NULL)
+		{
+			char szFullPath[_MAX_PATH] = { '\0' };
+			char *szFilePart;
+			DWORD dwRet = GetFullPathNameA("cleanMesh_Error.txt", _MAX_PATH, szFullPath, &szFilePart);
+			if (fp == NULL)
+			{
+				printf("file open error,[%s]\n", szFullPath);
+				if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+				{
+					printf("FullPathName failed.!\n");
+				}
+			}
+		}
 		fprintf(fp, "input object MinMax=(%f,%f,%f)-(%f,%f,%f)=(%f,%f,%f)!!\n",
 				bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5],
 				(bounds[1] - bounds[0]), (bounds[3] - bounds[1]), (bounds[5] - bounds[2]));

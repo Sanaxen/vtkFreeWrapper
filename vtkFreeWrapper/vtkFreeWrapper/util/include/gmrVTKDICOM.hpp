@@ -24,8 +24,11 @@
 #include "vtkRenderer.h"
 #include "vtkDICOMImageReader.h"
 #include "vtkRenderWindowInteractor.h"
-#include "vtkVolumeRayCastCompositeFunction.h "
-#include "vtkVolumeRayCastMapper.h"
+
+//VTK_VER > 810
+//#include "vtkVolumeRayCastCompositeFunction.h"
+//#include "vtkVolumeRayCastMapper.h"
+
 #include "vtkFixedPointVolumeRayCastMapper.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkProp.h"

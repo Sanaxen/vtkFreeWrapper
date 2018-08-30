@@ -55,12 +55,18 @@ gmrVTKDICOM::gmrVTKDICOM()
 
 gmrVTKDICOM::~gmrVTKDICOM()
 {
-	if ( reader_ ) reader_->Delete();
-	if ( skinExtractor_ ) skinExtractor_->Delete();
-	if ( skinNormals_ ) skinNormals_->Delete();
-	if ( skinMapper_ ) skinMapper_->Delete();
-	if ( actor_ ) actor_->Delete();
-	if ( viewer_ ) viewer_->Delete();
+	try
+	{
+		if (reader_) reader_->Delete();
+		if (skinExtractor_) skinExtractor_->Delete();
+		if (skinNormals_) skinNormals_->Delete();
+		if (skinMapper_) skinMapper_->Delete();
+		if (actor_) actor_->Delete();
+		if (viewer_) viewer_->Delete();
+	}
+	catch (...)
+	{
+	}
 }
 
 void gmrVTKDICOM::SetDirectoryName(char* DirectoryName)

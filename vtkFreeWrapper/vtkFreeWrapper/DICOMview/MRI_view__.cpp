@@ -59,12 +59,12 @@ extern "C" void DICOM_SliceViewer(char* folderName, int capture)
 
 	if (capture)
 	{
-		reader->GetImageViewer()->GetRenderWindow()->SetOffScreenRendering(1);
+		//reader->GetImageViewer()->GetRenderWindow()->SetOffScreenRendering(1);
 	}
 
 	int znum = reader->GetZnum();
 
-	for (int i = 0; i <= znum; i++)
+	for (int i = 0; i < znum; i++)
 	{
 		gmrVTKCaptureBMP* Capture = NULL;
 		if (capture)
@@ -536,6 +536,12 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	text7->SetSize(15);
 	text7->SetColor(0, 1.0, 0.0);
 
+	gmrVTKText* text8 = new gmrVTKText;
+	text8->SetText("b key => box(3D-scaling)  box on/off");
+	text8->SetPosition(20, 0);
+	text8->SetSize(15);
+	text8->SetColor(0, 1.0, 0.0);
+
 	gmrVTKRender* render;
 #if 10
 	render = new gmrVTKRender;
@@ -674,6 +680,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	render->AddActor(text5->GetActor());
 	render->AddActor(text6->GetActor());
 	render->AddActor(text7->GetActor());
+	render->AddActor(text8->GetActor());
 
 	RCvolumeMapper = reader->GetVolumeMapper();
 	RCskinMapper = reader->GetskinMapper();
