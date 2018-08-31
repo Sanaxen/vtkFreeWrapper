@@ -5,7 +5,12 @@
                  |     +- 32bit <--- no use!!  
                  |     |  
                  |     +- 64bit- release -+-- bin  
-                 |                        |  
-                 |                        +-- include -- vtk-x.x.x -- vtk*.h  
-                 |                        |  
-                 |                        +-- lib -- vtk-x.x.x -- vtk*.lib  
+                 |     |                  |  
+                 |     |                  +-- include -- vtk-#.#.# -- vtk*.h  
+                 |     |                  |  
+                 |     |                  +-- lib -- vtk-#.#.# -- vtk*.lib  
+                 |     |                  |
+                 |     |                  +-- include -- vtk-x -- vtk*.h  
+                 |     |                  |  
+                 |     |                  +-- lib -- vtk-x -- vtk*.lib  
+                 |     +- build_setup.bat

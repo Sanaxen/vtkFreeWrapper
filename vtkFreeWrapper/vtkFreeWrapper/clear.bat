@@ -25,3 +25,4 @@ del /S BuildLog.htm
 del /S *.pdb *.idb *.ilk
 del /S *.suo *.ncb
 del log.txt
+del /S *.exp

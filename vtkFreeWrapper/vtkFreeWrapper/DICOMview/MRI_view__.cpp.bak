@@ -8,9 +8,7 @@
 #include "gmrVTK.hpp"
 #include "gmrVTKLIBs.hpp"
 
-#include "vtkTriangleFilter.h"
-#include "vtkCleanPolyData.h"
-#include "vtkPlanes.h"
+
 //#include "execute.hpp"
 
 /*
@@ -21,39 +19,55 @@
 #include "gmrVTKDICOM.hpp"
 #include "gmrVTKCapture.hpp"
 #include "gmrVTKOutline.hpp"
-  
+
 #include "gmrVTKCommand.hpp"
 #include "gmrVTKText.hpp"
 #include "gmrVTKExport.hpp"
 #include "gmrVTKImport.hpp"
+#include "gmrVTKPicker.hpp"
+#include "gmrVTKPoints.hpp"
+#include "gmrVTKPolyline.hpp"
+#include "gmrVTKAxes.hpp"
 
 #include "vtkBoxWidget.h"
 #include "vtkTransform.h"
 #include "vtkGPUVolumeRayCastMapper.h"
 
+#include "vtkPolyDataPointPlacer.h"
+#include "vtkTriangleFilter.h"
+#include "vtkCleanPolyData.h"
+#include "vtkPlanes.h"
+#include "vtkDistanceWidget.h"
+#include "vtkDistanceRepresentation3D.h"
+#include "vtkDistanceRepresentation2D.h"
+#include "vtkPointHandleRepresentation3D.h"
+#include "vtkVolumePicker.h"
+
+#include "vtkCaptionActor2D.h"
+
 #include <string>
-// DICOM sample image sets
-// http://149.142.216.30/DICOM_FILES/Index.html
+ // DICOM sample image sets
+ // http://149.142.216.30/DICOM_FILES/Index.html
 
 extern "C" void DICOM_SliceViewer(char* folderName, int capture)
 {
-    gmrVTKDICOM *reader = new gmrVTKDICOM;
-    
-//    reader->SetDirectoryName("data\\PANORAMIX\\Abdomen 1ABD_PEL_AAA\\Abd-Pel w-c  3.0  B30f");
-    reader->SetDirectoryName(folderName);
-    reader->LoadImageData();
+	gmrVTKDICOM *reader = new gmrVTKDICOM;
 
-	if ( capture )
+	//    reader->SetDirectoryName("data\\PANORAMIX\\Abdomen 1ABD_PEL_AAA\\Abd-Pel w-c  3.0  B30f");
+	reader->SetDirectoryName(folderName);
+	reader->LoadImageData();
+
+	if (capture)
 	{
 		reader->GetImageViewer()->GetRenderWindow()->SetOffScreenRendering(1);
 	}
 
-    int znum = reader->GetZnum();
+	int znum = reader->GetZnum();
 
-	for (int i=0;i<=znum;i++)
-    {
+	for (int i = 0; i <= znum; i++)
+	{
 		gmrVTKCaptureBMP* Capture = NULL;
-		if ( capture )
+		if (capture)
 		{
 			Capture = new gmrVTKCaptureBMP;
 			Capture->SetInput(reader->GetImageViewer());
@@ -61,14 +75,14 @@ extern "C" void DICOM_SliceViewer(char* folderName, int capture)
 		}
 
 		reader->ViewerZSlice(i, 400, 128);
-		
-		if ( capture )
+
+		if (capture)
 		{
 			Capture->SetInput(reader->GetImageViewer());
 			Capture->Capture(i);
 			delete Capture;
 		}
-    }
+	}
 
 	delete reader;
 }
@@ -86,72 +100,221 @@ extern "C" void DICOM2BMP(char* dcm_files_folderName)
 	fprintf(stderr, "finish.\n");
 }
 
+vtkSmartPointer<vtkPolyDataPointPlacer> pointPlacer = 0;
+vtkSmartPointer<vtkPointHandleRepresentation3D> handleRep = 0;
+vtkSmartPointer<vtkDistanceRepresentation2D> distanceRep = 0;
+vtkDistanceWidget* distanceWidget = 0;
+
+int picker_flag = 0;
+vtkVolumePicker* cellpicker = 0;
+
+class pickPoint
+{
+public:
+	pickPoint()
+	{
+		points = 0;
+		lines = 0;
+		sectionTextActor = 0;
+	}
+	double x, y;
+	double pos[3];
+	gmrVTKPoints* points;
+	gmrVTKPolyline* lines;
+	vtkCaptionActor2D* sectionTextActor;
+};
+
+std::vector<pickPoint> pickPointList;
+
+gmrVTKPicker* picker = 0;
 
 vtkBoxWidget *boxWidget = 0;
 vtkBoxWidget *boxWidget2 = 0;
+int RubberBandZoom_flag = 0;
+
+class ErrorObserver : public vtkCommand
+{
+public:
+	ErrorObserver() :
+		Error(false),
+		Warning(false),
+		ErrorMessage(""),
+		WarningMessage("") {}
+	static ErrorObserver *New()
+	{
+		return new ErrorObserver;
+	}
+	bool GetError() const
+	{
+		return this->Error;
+	}
+	bool GetWarning() const
+	{
+		return this->Warning;
+	}
+	void Clear()
+	{
+		this->Error = false;
+		this->Warning = false;
+		this->ErrorMessage = "";
+		this->WarningMessage = "";
+	}
+	virtual void Execute(vtkObject *vtkNotUsed(caller),
+		unsigned long event,
+		void *calldata)
+	{
+		switch (event)
+		{
+		case vtkCommand::ErrorEvent:
+			ErrorMessage = static_cast<char *>(calldata);
+			this->Error = true;
+			break;
+		case vtkCommand::WarningEvent:
+			WarningMessage = static_cast<char *>(calldata);
+			this->Warning = true;
+			break;
+		}
+	}
+	std::string GetErrorMessage()
+	{
+		return ErrorMessage;
+	}
+	std::string GetWarningMessage()
+	{
+		return WarningMessage;
+	}
+private:
+	bool        Error;
+	bool        Warning;
+	std::string ErrorMessage;
+	std::string WarningMessage;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // KeyPressEventを拾うためのコールバック
 class MyCallback : public gmrVTKCommand
 {
 public:
-        MyCallback() {;};
+	MyCallback() { ; };
 
-        static MyCallback *New() {
-			return new MyCallback; 
+	static MyCallback *New() {
+		return new MyCallback;
+	}
+
+	virtual void Execute(vtkObject *caller, unsigned long eventId, void*)
+	{
+		vtkRenderWindowInteractor *iren =
+			reinterpret_cast<vtkRenderWindowInteractor*>(caller);
+
+		char* key = iren->GetKeySym();
+
+		if (std::string(key) == "d")
+		{
+			if (picker_flag)
+			{
+				printf("picker OFF\n");
+				picker_flag = 0;
+			}
+			else
+			{
+				printf("picker ON\n");
+				picker_flag = 1;
+			}
+		}
+		if (std::string(key) == "D")
+		{
+			for (int i = 0; i < pickPointList.size(); i++)
+			{
+				this->GetRenderer()->RemoveActor(pickPointList[i].points->GetActor());
+				if (pickPointList[i].lines)
+				{
+					this->GetRenderer()->RemoveActor(pickPointList[i].lines->GetActor());
+					delete pickPointList[i].lines;
+				}
+				if (pickPointList[i].sectionTextActor)
+				{
+					this->GetRenderer()->RemoveActor(pickPointList[i].sectionTextActor);
+					pickPointList[i].sectionTextActor->Delete();
+				}
+
+				delete pickPointList[i].points;
+			}
+			pickPointList.clear();
+			this->GetRenderer()->GetRenderWindow()->Render();
 		}
 
-        virtual void Execute(vtkObject *caller, unsigned long eventId, void*)
+		// スペース・キーが押されたらRubberBandZoomにする
+		if (std::string(key) == "space")
 		{
-			vtkRenderWindowInteractor *iren =
-					reinterpret_cast<vtkRenderWindowInteractor*>(caller);
-
-			// スペース・キーが押されたらRubberBandZoomにする
-			char* key = iren->GetKeySym();
-			if ( std::string(key) == "space" )
+			if (!RubberBandZoom_flag)
 			{
+				RubberBandZoom_flag = 1;
 				this->GetRenderer()->InteractorStyleRubberBandZoom();
-			}else{
+			}
+			else
+			{
+				RubberBandZoom_flag = 0;
 				this->GetRenderer()->InteractorStyleTrackballCamera();
 			}
+		}
 
-			if ( std::string(key) == "b" && boxWidget)
+
+		if (std::string(key) == "b" && boxWidget)
+		{
+			if (boxWidget->GetEnabled())
 			{
-				if ( boxWidget->GetEnabled() )
-				{
-					boxWidget->Off();
-				}else
-				{
-					boxWidget->On();
-				}
+				boxWidget->Off();
 			}
-			if (std::string(key) == "c" && boxWidget2)
+			else
 			{
-				if (boxWidget2->GetEnabled())
-				{
-					boxWidget2->Off();
-				}
-				else
-				{
-					boxWidget2->On();
-				}
+				boxWidget->On();
 			}
 		}
+		if (std::string(key) == "c" && boxWidget2)
+		{
+			if (boxWidget2->GetEnabled())
+			{
+				boxWidget2->Off();
+			}
+			else
+			{
+				boxWidget2->On();
+			}
+		}
+		if (std::string(key) == "m" && distanceWidget)
+		{
+			if (distanceWidget->GetEnabled())
+			{
+				distanceWidget->Off();
+				distanceWidget->Delete();
+				distanceWidget = vtkDistanceWidget::New();
+				distanceWidget->SetRepresentation(distanceRep);
+				distanceWidget->SetInteractor(this->GetRenderer()->GetRenderWindowInteractor());
+			}
+			else
+			{
+				distanceWidget->On();
+			}
+		}
+	}
 };
 
 //BoxWidgetののコールバック
 class vtkMyCallback2 : public gmrVTKCommand
 {
 public:
-  static vtkMyCallback2 *New() 
-    { return new vtkMyCallback2; }
-  virtual void Execute(vtkObject *caller, unsigned long, void*)
-    {
-      vtkTransform *t = vtkTransform::New();
-      vtkBoxWidget *widget = reinterpret_cast<vtkBoxWidget*>(caller);
-      widget->GetTransform(t);
-      widget->GetProp3D()->SetUserTransform(t);
-      t->Delete();
-    }
+	static vtkMyCallback2 *New()
+	{
+		return new vtkMyCallback2;
+	}
+	virtual void Execute(vtkObject *caller, unsigned long, void*)
+	{
+		vtkTransform *t = vtkTransform::New();
+		vtkBoxWidget *widget = reinterpret_cast<vtkBoxWidget*>(caller);
+		widget->GetTransform(t);
+		widget->GetProp3D()->SetUserTransform(t);
+		t->Delete();
+	}
 };
 
 bool surfaceRendering = false;
@@ -187,73 +350,289 @@ public:
 	}
 };
 
-extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue)
- {
- 	gmrVTKText* text1 = new gmrVTKText;
+class MyCallbackPick : public gmrVTKCommand
+{
+	char buf[256];
+	gmrVTKText* text;
+
+public:
+	MyCallbackPick() { text = NULL; };
+
+	static MyCallbackPick *New() {
+		return new MyCallbackPick;
+	}
+
+	virtual void Execute(vtkObject *caller, unsigned long eventId, void*)
+	{
+		printf("@picker_flag:%d\n", picker_flag);
+		if (!picker_flag) return;
+
+		vtkRenderWindowInteractor *iren =
+			reinterpret_cast<vtkRenderWindowInteractor*>(caller);
+
+		// Window Position
+		double x = iren->GetEventPosition()[0];
+		double y = iren->GetEventPosition()[1];
+
+		printf("%f %f\n", x, y);
+
+		// 3D Positon
+		pickPoint wpos;
+		double pos[3];
+
+		wpos.x = x;
+		wpos.y = y;
+		int succed = cellpicker->Pick(x, y, 0, this->GetRenderer()->GetRenderer());
+		cellpicker->GetPickPosition(wpos.pos);
+
+
+		sprintf(buf, "X=%f Y=%f Z=%f (%d,%d)", wpos.pos[0], wpos.pos[1], wpos.pos[2], (int)(x), (int)(y));
+		//sprintf(buf, "(%.3f,%.3f,%.3f)", wpos.pos[0], wpos.pos[1], wpos.pos[2]);
+
+		//if (text == NULL) text = new gmrVTKText;
+		//else {
+		//	this->GetRenderer()->RemoveActor(text->GetActor());
+		//}
+		//text->SetText(buf);
+		//text->SetPosition(5,200);
+		//text->SetSize(13);
+
+		double scalar[3] = { 1,1,1 };
+		if (succed)
+		{
+			//text->SetColor(1, 1, 1);
+			wpos.points = new gmrVTKPoints;
+
+			wpos.points->SetSize(10);
+			wpos.points->SetPoint(wpos.pos);
+			wpos.points->SetDiffuseColor(1, 0, 0);
+			//wpos.points->SetScalar(scalar);
+			this->GetRenderer()->AddActor(wpos.points->GetActor());
+
+			pickPointList.push_back(wpos);
+
+			if (pickPointList.size() && pickPointList.size() % 2 == 0)
+			{
+				gmrVTKPolyline* poly = new gmrVTKPolyline;
+
+				int n = pickPointList.size() - 1;
+
+				poly->SetPoint(pickPointList[n].pos);
+				poly->SetPoint(pickPointList[n - 1].pos);
+				poly->SetSize(2);
+				//poly->SetScalar(scalar);
+				poly->SetDiffuseColor(0.0, 1.0, 0.0);
+
+				pickPointList.pop_back();
+				wpos.lines = poly;
+
+
+				double dist =
+					(pickPointList[n].pos[0] - pickPointList[n - 1].pos[0])*(pickPointList[n].pos[0] - pickPointList[n - 1].pos[0]) +
+					(pickPointList[n].pos[1] - pickPointList[n - 1].pos[1])*(pickPointList[n].pos[1] - pickPointList[n - 1].pos[1]) +
+					(pickPointList[n].pos[2] - pickPointList[n - 1].pos[2])*(pickPointList[n].pos[2] - pickPointList[n - 1].pos[2]);
+				dist = sqrt(dist);
+
+				char buf[256];
+
+				// Caption
+				wpos.sectionTextActor = vtkCaptionActor2D::New();
+
+				double dx = (pickPointList[n].pos[0] + pickPointList[n - 1].pos[0]) / 2.0;
+				double dy = (pickPointList[n].pos[1] + pickPointList[n - 1].pos[1]) / 2.0;
+				double dz = (pickPointList[n].pos[2] + pickPointList[n - 1].pos[2]) / 2.0;
+
+				sprintf(buf, "%.3f", dist);
+
+				wpos.sectionTextActor->SetAttachmentPoint(dx, dy, dz);
+				wpos.sectionTextActor->SetCaption(buf);
+				wpos.sectionTextActor->BorderOff();
+				wpos.sectionTextActor->LeaderOn();
+				wpos.sectionTextActor->SetPadding(0);
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetJustificationToLeft();
+				wpos.sectionTextActor->GetCaptionTextProperty()->ShadowOff();
+				wpos.sectionTextActor->GetCaptionTextProperty()->ItalicOff();
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetFontFamilyToCourier();
+				wpos.sectionTextActor->GetCaptionTextProperty()->SetFontSize(24);
+				wpos.sectionTextActor->GetTextActor()->SetTextScaleModeToNone();
+				pickPointList.push_back(wpos);
+
+
+
+				//this->GetRenderer()->GetRenderer()->AddActor2D(wpos.sectionTextActor);
+
+				this->GetRenderer()->AddActor(wpos.sectionTextActor);
+				this->GetRenderer()->AddActor(poly->GetActor());
+			}
+		}
+		else
+		{
+			//text->SetColor(0.5, 0.5, 0.5);
+		}
+		//text->SetColor(1, 0, 0);
+		//this->GetRenderer()->AddActor(text->GetActor());
+		this->GetRenderer()->GetRenderWindow()->Render();
+	}
+};
+
+int DICOM_3DViewer_colorScheme = -1;
+double DICOM_3DViewer_isoRange[2] = { -300.0, 300.0 };
+
+extern "C" int GetDICOM_3DViewer_colorScheme()
+{
+	return DICOM_3DViewer_colorScheme;
+}
+extern "C" void SetDICOM_3DViewer_colorScheme(int scheme)
+{
+	DICOM_3DViewer_colorScheme = scheme;
+}
+extern "C" void SetDICOM_3DViewer_isoRange(double range[2])
+{
+	DICOM_3DViewer_isoRange[0] = range[0];
+	DICOM_3DViewer_isoRange[1] = range[1];
+}
+
+extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile)
+{
+	gmrVTKText* text1 = new gmrVTKText;
 	text1->SetText("space key =>RubberBandZoom");
-	text1->SetPosition(20,400);
-	text1->SetSize(20);
-	text1->SetColor(1.0,0.0,0.0);
+	text1->SetPosition(20, 140);
+	text1->SetSize(15);
+	text1->SetColor(1.0, 0.0, 0.0);
 
 	gmrVTKText* text2 = new gmrVTKText;
 	text2->SetText("no space key => default");
-	text2->SetPosition(20,360);
-	text2->SetSize(20);
-	text2->SetColor(0,1.0,0.0);
+	text2->SetPosition(20, 120);
+	text2->SetSize(15);
+	text2->SetColor(0, 1.0, 0.0);
 
 	gmrVTKText* text3 = new gmrVTKText;
 	text3->SetText("r key => resize box on/off");
-	text3->SetPosition(20,320);
-	text3->SetSize(20);
-	text3->SetColor(0,1.0,0.0);
+	text3->SetPosition(20, 100);
+	text3->SetSize(15);
+	text3->SetColor(0, 1.0, 0.0);
 
-	gmrVTKText* text4= new gmrVTKText;
+	gmrVTKText* text4 = new gmrVTKText;
 	text4->SetText("c key => cross section  box on/off");
-	text4->SetPosition(20, 280);
-	text4->SetSize(20);
+	text4->SetPosition(20, 80);
+	text4->SetSize(15);
 	text4->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text5 = new gmrVTKText;
+	text5->SetText("d key => measure on/off");
+	text5->SetPosition(20, 60);
+	text5->SetSize(15);
+	text5->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text6 = new gmrVTKText;
+	text6->SetText("D key => measure clear");
+	text6->SetPosition(20, 40);
+	text6->SetSize(15);
+	text6->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text7 = new gmrVTKText;
+	text7->SetText("m key => measure(2D) on/off");
+	text7->SetPosition(20, 20);
+	text7->SetSize(15);
+	text7->SetColor(0, 1.0, 0.0);
 
 	gmrVTKRender* render;
 #if 10
 	render = new gmrVTKRender;
 #else
 	int offscreen = 1;
-	if ( output )
+	if (output)
 	{
 		render = new gmrVTKRender(offscreen);
-	}else{
+	}
+	else {
 		render = new gmrVTKRender;
 	}
 #endif
-    gmrVTKDICOM *reader = new gmrVTKDICOM;
+	gmrVTKDICOM *reader = new gmrVTKDICOM;
 	if (sample_dist > 0.0)
 	{
-		reader->SampleDistance_ = sample_dist;
+		reader->SampleDistance() = sample_dist;
 	}
-	if (isovalue > -1.0E-8)
+	if (output != 100)
 	{
 		reader->surface_On = 1;
-		reader->isovalue = isovalue;
+		reader->IsoValue() = isovalue;
 	}
-    
+
+	vtkObject::SetGlobalWarningDisplay(0);
+	vtkSmartPointer<ErrorObserver>  errorObserver =
+		vtkSmartPointer<ErrorObserver>::New();
+	render->GetRenderWindowInteractor()->AddObserver(vtkCommand::ErrorEvent, errorObserver);
+	render->GetRenderWindowInteractor()->AddObserver(vtkCommand::WarningEvent, errorObserver);
+
+	reader->GetDICOMImage()->AddObserver(vtkCommand::ErrorEvent, errorObserver);
+	reader->GetDICOMImage()->AddObserver(vtkCommand::WarningEvent, errorObserver);
+
+	char drive[_MAX_DRIVE];	// ドライブ名
+	char dir[_MAX_DIR];		// ディレクトリ名
+	char fname[_MAX_FNAME];	// ファイル名
+	char ext[_MAX_EXT];		// 拡張子
+
+	_splitpath(folderName, drive, dir, fname, ext);
+
+	bool color_def = false;
 	char colorset[256];
-	sprintf(colorset, "color.def");
+	sprintf(colorset, "%s%scolor.def", drive, dir);
+	printf("colorset[%s]\n", colorset);
+
 	FILE* fp = fopen(colorset, "r");
+	if (fp == NULL)
+	{
+		char szFullPath[_MAX_PATH] = { '\0' };
+		char *szFilePart;
+		DWORD dwRet = GetFullPathNameA(colorset, _MAX_PATH, szFullPath, &szFilePart);
+		if (fp == NULL)
+		{
+			printf("file open error,[%s]\n", szFullPath);
+			if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+			{
+				printf("FullPathName failed.!\n");
+			}
+		}
+	}
+	if (fp == NULL)
+	{
+		printf("undefined [color.def]\n");
+	}
 	if (fp)
 	{
+		color_def = true;
 		printf("load color.def\n");
 		char buf[256];
+		char colorset2[256];
 		if (fgets(buf, 256, fp) != NULL)
 		{
-			strcpy(colorset, buf);
-			if (colorset[strlen(colorset) - 1] == '\n')
+			strcpy(colorset2, buf);
+			if (colorset2[strlen(colorset2) - 1] == '\n')
 			{
-				colorset[strlen(colorset) - 1] = '\0';
+				colorset2[strlen(colorset2) - 1] = '\0';
 			}
 		}
 		fclose(fp);
+		sprintf(colorset, "%s%s%s", drive, dir, colorset2);
+		printf("colorset[%s]\n", colorset);
 
 		fp = fopen(colorset, "r");
+		if (fp == NULL)
+		{
+			char szFullPath[_MAX_PATH] = { '\0' };
+			char *szFilePart;
+			DWORD dwRet = GetFullPathNameA(colorset, _MAX_PATH, szFullPath, &szFilePart);
+			if (fp == NULL)
+			{
+				printf("file open error,[%s]\n", szFullPath);
+				if (strlen(szFullPath) >= _MAX_PATH || dwRet == 0)
+				{
+					printf("FullPathName failed.!\n");
+				}
+			}
+		}
 		if (fp)
 		{
 			printf("=>%s\n", colorset);
@@ -277,18 +656,31 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	//    reader->SetDirectoryName("data");
 	reader->SetDirectoryName(folderName);
 	reader->LoadImageData();
+	if (errorObserver->GetError())
+	{
+		//std::cout << "Caught error! " << errorObserver->GetErrorMessage();
+		std::cout << "Error! " << "DICOM Image: Either a filename was not specified or the specified directory does not contain any DICOM images.";
+		return;
+	}
+	if (reader->GetDICOMImage()->GetErrorCode())
+	{
+		return;
+	}
 
 	render->AddActor(text1->GetActor());
 	render->AddActor(text2->GetActor());
 	render->AddActor(text3->GetActor());
 	render->AddActor(text4->GetActor());
+	render->AddActor(text5->GetActor());
+	render->AddActor(text6->GetActor());
+	render->AddActor(text7->GetActor());
 
-	RCvolumeMapper = reader->volumemapper;
-	RCskinMapper = reader->skinMapper_;
+	RCvolumeMapper = reader->GetVolumeMapper();
+	RCskinMapper = reader->GetskinMapper();
 	if (reader->surface_On)
 	{
 		surfaceRendering = true;
-		RCsurface_mapper = reader->surface_mapper_;
+		RCsurface_mapper = reader->GetSurface_Mapper();
 	}
 	//vtkCamera *camera = vtkCamera::New();
 	//camera->SetViewUp(1,0,0);
@@ -296,41 +688,90 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	//camera->SetFocalPoint(0,0,0);
 	//camera->ComputeViewPlaneNormal();
 
-	if ( output == 100 )
+	// Add Axes X-Y-Z
+	gmrVTKAxes *axes = new gmrVTKAxes;
+	axes->SetLength(10.0);
+	axes->SetOrigin(-6.0, 2.0, -6.0);
+	axes->SetRadius(0.05);
+	axes->SymmetricOff();
+
+	pointPlacer = vtkSmartPointer<vtkPolyDataPointPlacer>::New();
+	pointPlacer->AddProp(reader->GetVolume());
+
+	handleRep = vtkSmartPointer<vtkPointHandleRepresentation3D>::New();
+	handleRep->SetHandleSize(50);
+	handleRep->GetProperty()->SetColor(1., 0., 0.);
+	handleRep->SetPointPlacer(pointPlacer);
+
+	distanceRep = vtkSmartPointer<vtkDistanceRepresentation2D>::New();
+	distanceRep->SetHandleRepresentation(handleRep);
+	distanceRep->SetLabelFormat("%-#6.3g mm");
+
+	distanceWidget = vtkDistanceWidget::New();
+	distanceWidget->SetRepresentation(distanceRep);
+	distanceWidget->SetInteractor(render->GetRenderWindowInteractor());
+
+	if (output == 100)
 	{
-		render->AddActor( reader->volume);
+		render->AddActor(reader->GetVolume());
 		if (reader->surface_On)
 		{
-			render->AddActor(reader->surface_actor_);
+			render->AddActor(reader->GetSurfaceActor());
 		}
 	}
 	//render->GetRenderer()->SetActiveCamera(camera);
 	//render->GetRenderer()->ResetCamera();
 
-	if ( output == 100 )
+	if (output == 100)
 	{
 		/* empty */
-	}else
+	}
+	else
 	{
-		
+
 		if (reader->surface_On)
 		{
-			reader->surface_actor_->GetProperty()->SetColor(240. / 255., 217. / 255., 202. / 255.);
-			reader->surface_actor_->GetProperty()->SetSpecular(0.2);
-			
-			if (reader->isovalue > 50.0)
+			reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
+			//if (reader->volumeColorSet.size() >= 2)
+			//{
+			//	printf("surface color set\n");
+			//	for (int i = 1; i < reader->volumeColorSet.size(); ++i)
+			//	{
+			//		printf("%f -> [%f,%f]\n", reader->IsoValue(), reader->volumeColorSet[i - 1].x[0], reader->volumeColorSet[i].x[0]);
+			//		if (reader->volumeColorSet[i-1].x[0] <= reader->IsoValue() && reader->volumeColorSet[i].x[0] > reader->IsoValue())
+			//		{
+			//			printf("==>%f -> [%f,%f]\n", reader->IsoValue(), reader->volumeColorSet[i - 1].x[0], reader->volumeColorSet[i].x[0]);
+			//			reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[i].x[1], reader->volumeColorSet[i].x[2], reader->volumeColorSet[i].x[3]);
+			//		}
+			//	}
+			//	if (reader->volumeColorSet[0].x[0] > reader->IsoValue())
+			//	{
+			//		reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[1].x[1]*0.7, reader->volumeColorSet[1].x[2] * 0.7, reader->volumeColorSet[1].x[3] * 0.7);
+			//	}
+			//	if (reader->volumeColorSet[reader->volumeColorSet.size()-1].x[0] < reader->IsoValue())
+			//	{
+			//		reader->GetSurfaceActor()->GetProperty()->SetColor(reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[1]*0.7, reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[2] * 0.7, reader->volumeColorSet[reader->volumeColorSet.size() - 2].x[3] * 0.7);
+			//	}
+			//}
+			//else
 			{
-				reader->surface_actor_->GetProperty()->SetColor(227. / 255., 66.0 / 255., 111. / 255.);
+				reader->GetSurfaceActor()->GetProperty()->SetColor(240. / 255., 217. / 255., 202. / 255.);
+				reader->GetSurfaceActor()->GetProperty()->SetSpecular(0.2);
+
+				if (reader->IsoValue() > 50.0)
+				{
+					reader->GetSurfaceActor()->GetProperty()->SetColor(227. / 255., 114. / 255., 69. / 255.);
+				}
+				if (reader->IsoValue() > 100.0)
+				{
+					reader->GetSurfaceActor()->GetProperty()->SetColor(223. / 255., 135. / 255., 113. / 255.);
+				}
+				if (reader->IsoValue() > 200.0)
+				{
+					reader->GetSurfaceActor()->GetProperty()->SetColor(1, 1, 1);
+				}
 			}
-			if (reader->isovalue > 100.0)
-			{
-				reader->surface_actor_->GetProperty()->SetColor(223. / 255., 135. / 255., 113. / 255.);
-			}
-			if (reader->isovalue > 200.0)
-			{
-				reader->surface_actor_->GetProperty()->SetColor(1, 1, 1);
-			}
-			render->AddActor(reader->surface_actor_);
+			render->AddActor(reader->GetSurfaceActor());
 		}
 		else
 		{
@@ -348,42 +789,121 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	if (output == 101)
 	{
 		//render->GetRenderer()->AddViewProp(reader->volume);
-		render->AddActor(reader->volume);
+		render->AddActor(reader->GetVolume());
 		if (reader->surface_On)
 		{
-			render->AddActor(reader->surface_actor_);
+			render->AddActor(reader->GetSurfaceActor());
 		}
 	}
 	//render->SetBackgroundColor( 0.4, 0.4, 0.4 );
-	render->SetBackgroundColor( 0.004, 0.004, 0.004 );
+	render->SetBackgroundColor(0.004, 0.004, 0.004);
 	render->GetRenderWindow()->SetWindowName("MRI viewer");
 
-	if ( output== 1 || output == 11 )
+	if (output == 1 || output == 11)
 	{
 		gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
-		expoter->SaveFile(render, "aaa");
+		if (outfile != NULL)
+		{
+			double isoRange[2] = { DICOM_3DViewer_isoRange[0], DICOM_3DViewer_isoRange[1] };
+
+			int colorScheme = DICOM_3DViewer_colorScheme;
+			if (colorScheme < 0) colorScheme = 0;
+
+			vtkSmartPointer<vtkColorSeries> colorSeries = vtkSmartPointer<vtkColorSeries>::New();
+			colorSeries->SetColorScheme(colorScheme);
+			std::cout << "Using color scheme #: "
+				<< colorSeries->GetColorScheme() << " is "
+				<< colorSeries->GetColorSchemeName() << std::endl;
+
+			vtkSmartPointer<vtkColorTransferFunction> lut = vtkSmartPointer<vtkColorTransferFunction>::New();
+			lut->SetColorSpaceToHSV();
+
+			int numColors = colorSeries->GetNumberOfColors();
+			for (int i = 0; i < numColors; i++)
+			{
+				vtkColor3ub color = colorSeries->GetColor(i);
+				double dColor[3];
+				dColor[0] = static_cast<double> (color[0]) / 255.0;
+				dColor[1] = static_cast<double> (color[1]) / 255.0;
+				dColor[2] = static_cast<double> (color[2]) / 255.0;
+				double t = isoRange[0] + (isoRange[1] - isoRange[0])
+					/ (numColors - 1) * i;
+				lut->AddRGBPoint(t, dColor[0], dColor[1], dColor[2]);
+			}
+
+
+			printf("[%s]\n", outfile);
+			vtkSmartPointer<vtkUnsignedCharArray> colors =
+				vtkSmartPointer<vtkUnsignedCharArray>::New();
+			colors->SetNumberOfComponents(3);
+			colors->SetNumberOfTuples(reader->GetMesh()->GetPoints()->GetNumberOfPoints());
+			colors->SetName("DicomColors");
+
+			double rgb[3];
+			if (DICOM_3DViewer_colorScheme < 0)
+			{
+				reader->GetSurfaceActor()->GetProperty()->GetColor(rgb[0], rgb[1], rgb[2]);
+			}
+			else
+			{
+				lut->GetColor(reader->IsoValue(), rgb);
+			}
+			for (int i = 0; i < reader->GetMesh()->GetPoints()->GetNumberOfPoints(); i++)
+			{
+				colors->SetComponent(i, 0, rgb[0] * 255);
+				colors->SetComponent(i, 1, rgb[1] * 255);
+				colors->SetComponent(i, 2, rgb[2] * 255);
+			}
+			reader->GetMesh()->GetPointData()->SetScalars(colors);
+			reader->GetSurface_Mapper()->SetColorModeToDefault();
+
+			std::string file = outfile;
+			file += ".obj";
+			int stat = expoter->exportVertexColorOBJ((char*)file.c_str(), reader->GetMesh(), colors);
+			if (stat != 0)
+			{
+				expoter->SaveFile(render, outfile);
+			}
+		}
+		else
+			expoter->SaveFile(render, "aaa");
 		delete expoter;
-		if ( output > 10 ) exit(0);
+		if (output > 10) exit(0);
 	}
-	if ( output== 2 || output == 12 )
+	if (output == 2 || output == 12)
 	{
 		gmrVTKExportSTL* expoter = new gmrVTKExportSTL();
-		expoter->SaveFile(reader->GetSkin()->GetOutputPort(), "aaaa.stl");
-		if ( output > 10 ) exit(0);
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(reader->GetSkin()->GetOutputPort(), outfile);
+		}
+		else
+			expoter->SaveFile(reader->GetSkin()->GetOutputPort(), "aaaa.stl");
+		if (output > 10) exit(0);
 	}
-	if ( output== 3 || output == 13 )
+	if (output == 3 || output == 13)
 	{
 		gmrVTKExportVRML* expoter = new gmrVTKExportVRML();
-		expoter->SaveFile(render, "aaa.wrl");
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(render, outfile);
+		}
+		else
+			expoter->SaveFile(render, "aaa.wrl");
 		delete expoter;
-		if ( output > 10 ) exit(0);
+		if (output > 10) exit(0);
 	}
-	if ( output== 4 || output == 14 )
+	if (output == 4 || output == 14)
 	{
 		gmrVTKExportX3D* expoter = new gmrVTKExportX3D();
-		expoter->SaveFile(render, "aaa.x3d");
+		if (outfile != NULL)
+		{
+			expoter->SaveFile(render, outfile);
+		}
+		else
+			expoter->SaveFile(render, "aaa.x3d");
 		delete expoter;
-		if ( output > 10 ) exit(0);
+		if (output > 10) exit(0);
 	}
 
 	// コールバックの登録
@@ -399,7 +919,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 			if (reader->surface_On)
 			{
-				boxWidget->SetProp3D(reader->surface_actor_);
+				boxWidget->SetProp3D(reader->GetSurfaceActor());
 			}
 			else
 			{
@@ -422,7 +942,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 
 			if (reader->surface_On)
 			{
-				boxWidget2->SetProp3D(reader->surface_actor_);
+				boxWidget2->SetProp3D(reader->GetSurfaceActor());
 			}
 			else
 			{
@@ -434,61 +954,89 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			boxWidget2->On();
 		}
 	}
-	render->DefaultRun();
-	
+
+	cellpicker = vtkVolumePicker::New();
+	cellpicker->SetTolerance(1.0e-6);
+	cellpicker->SetVolumeOpacityIsovalue(0.1);
+	render->GetRenderWindowInteractor()->SetPicker(cellpicker);
+
+	MyCallbackPick* callback = MyCallbackPick::New();
+	render->AddCallback(vtkCommand::LeftButtonPressEvent, callback);
+	picker_flag = 0;
+	render->DefaultRun("DICOM");
+
 }
 
- extern "C" void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue)
- {
-	char* folderName;
-
-	folderName = dcm_files_folderName;
-
-	int f = 10*flg;
-
-	// DICOM スライスViewer
-	fprintf(stderr, "==> convert obj!!\n");
-	DICOM_3DViewer(folderName, 1+f, -1.0, isovalue);
-	fprintf(stderr, "finish.\n");
-}
- extern "C" void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue)
- {
-	char* folderName;
-
-	folderName = dcm_files_folderName;
-
-	int f = 10*flg;
-
-	// DICOM スライスViewer
-	fprintf(stderr, "==> convert STL!!\n");
-	DICOM_3DViewer(folderName, 2+f, -1.0, isovalue);
-	fprintf(stderr, "finish.\n");
-}
-
- extern "C" void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue)
+extern "C" void DICOM2OBJ(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
 {
 	char* folderName;
 
 	folderName = dcm_files_folderName;
 
-	int f = 10*flg;
+	int f = 10 * flg;
 
 	// DICOM スライスViewer
-	fprintf(stderr, "==> convert vrml!!\n");
-	DICOM_3DViewer(folderName, 3+f, -1.0, isovalue);
+	fprintf(stderr, "==> convert obj!!\n");
+
+	char outfileName[512];
+	char* outfile2 = outfile;
+	if (outfile)
+	{
+		char drive[_MAX_DRIVE];	// ドライブ名
+		char dir[_MAX_DIR];		// ディレクトリ名
+		char fname[_MAX_FNAME];	// ファイル名
+		char ext[_MAX_EXT];		// 拡張子
+
+		_splitpath(outfile, drive, dir, fname, ext);
+		if (strcmp(".obj", ext) == 0 || strcmp(".OBJ", ext) == 0)
+		{
+			strcpy(outfileName, outfile);
+			sprintf(outfileName, "%s%s%s", drive, dir, fname);
+			outfile2 = outfileName;
+		}
+	}
+
+	DICOM_3DViewer(folderName, 1 + f, -1.0, isovalue, outfile2);
 	fprintf(stderr, "finish.\n");
 }
-
- extern "C" void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue)
- {
+extern "C" void DICOM2STL(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
+{
 	char* folderName;
 
 	folderName = dcm_files_folderName;
 
-	int f = 10*flg;
+	int f = 10 * flg;
+
+	// DICOM スライスViewer
+	fprintf(stderr, "==> convert STL!!\n");
+	DICOM_3DViewer(folderName, 2 + f, -1.0, isovalue, outfile);
+	fprintf(stderr, "finish.\n");
+}
+
+extern "C" void DICOM2VRML(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
+{
+	char* folderName;
+
+	folderName = dcm_files_folderName;
+
+	int f = 10 * flg;
+
+	// DICOM スライスViewer
+	fprintf(stderr, "==> convert vrml!!\n");
+	DICOM_3DViewer(folderName, 3 + f, -1.0, isovalue, outfile);
+	fprintf(stderr, "finish.\n");
+}
+
+extern "C" void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue, char* outfile)
+{
+	char* folderName;
+
+	folderName = dcm_files_folderName;
+
+	int f = 10 * flg;
 
 	// DICOM スライスViewer
 	fprintf(stderr, "==> convert x3d!!\n");
-	DICOM_3DViewer(folderName, 4+f, -1.0, isovalue);
+	DICOM_3DViewer(folderName, 4 + f, -1.0, isovalue, outfile);
 	fprintf(stderr, "finish.\n");
 }
