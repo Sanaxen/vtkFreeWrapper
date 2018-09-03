@@ -42,6 +42,9 @@ int main(int argc, char** argv)
 		fprintf(stderr, "-iso isovalue\n");
 		fprintf(stderr, "-sample_dist sample_dist\n");
 		fprintf(stderr, "-o filename\n");
+
+		fprintf(stderr, "-s slice_image_num\n");
+		fprintf(stderr, "-base_name image_base_name\n");
 		fprintf(stderr, "no option => slice viewer\n");
 		return 1;
 	}
@@ -59,10 +62,27 @@ int main(int argc, char** argv)
 	double isovalue = 0.0;// -1.0E32;
 	double sample_dist = -1.0;
 
+	char* base_name = NULL;
+	int slice_image_num = -1;
+	bool isovalue_set = false;
+
 	int export_and_view = 0;
 	int mode = -1;
 	for (int i = 2; i < argc; ++i)
 	{
+		if (strcmp("-base_name", argv[i]) == 0)
+		{
+			base_name = argv[i + 1];
+			i++;
+			continue;
+		}
+		if (strcmp("-s", argv[i]) == 0)
+		{
+			slice_image_num = atoi(argv[i+1]);
+			i++;
+			continue;
+		}
+
 		if (strcmp("-3dvr", argv[i]) == 0)
 		{
 			mode = POLYGON_VOLUME_VIEW;
@@ -107,6 +127,7 @@ int main(int argc, char** argv)
 		}
 		if (strcmp("-iso", argv[i]) == 0)
 		{
+			isovalue_set = true;
 			isovalue = atof(argv[i + 1]);
 			i++;
 			continue;
@@ -126,7 +147,14 @@ int main(int argc, char** argv)
 
 	}
 
+	if (slice_image_num > 0)
+	{
+		double* iso = NULL;
+		if (isovalue_set) iso = &isovalue;
 
+		return loadSliceImages(folderName, base_name, slice_image_num, 1, iso);
+
+	}
 	if ( mode == POLYGON_VIEW)
 	{
 		fprintf(stderr, "==> 3d viewer!!\n");

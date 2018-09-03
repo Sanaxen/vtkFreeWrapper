@@ -9,6 +9,7 @@
 #include "gmrVTKLIBs.hpp"
 
 
+
 //#include "execute.hpp"
 
 /*
@@ -46,6 +47,22 @@
 #include "vtkCaptionActor2D.h"
 
 #include <string>
+
+#include "vtkImageReader.h"
+#include "vtkPolyDataReader.h"
+
+#include <chrono>
+#include "gmrVTKMeshFilter.hpp"
+
+#ifndef STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#include "../stb/stb_image.h"
+#endif
+
+#include <vtkSliderWidget.h>
+#include <vtkSliderRepresentation3D.h>
+#include <vtkSliderRepresentation2D.h>
+
  // DICOM sample image sets
  // http://149.142.216.30/DICOM_FILES/Index.html
 
@@ -495,13 +512,13 @@ extern "C" void SetDICOM_3DViewer_isoRange(double range[2])
 extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile)
 {
 	gmrVTKText* text1 = new gmrVTKText;
-	text1->SetText("space key =>RubberBandZoom");
+	text1->SetText("space key =>RubberBandZoom on/off");
 	text1->SetPosition(20, 140);
 	text1->SetSize(15);
 	text1->SetColor(1.0, 0.0, 0.0);
 
 	gmrVTKText* text2 = new gmrVTKText;
-	text2->SetText("no space key => default");
+	text2->SetText("---------------------");
 	text2->SetPosition(20, 120);
 	text2->SetSize(15);
 	text2->SetColor(0, 1.0, 0.0);
@@ -1046,4 +1063,647 @@ extern "C" void DICOM2X3D(char* dcm_files_folderName, int flg, double isovalue, 
 	fprintf(stderr, "==> convert x3d!!\n");
 	DICOM_3DViewer(folderName, 4 + f, -1.0, isovalue, outfile);
 	fprintf(stderr, "finish.\n");
+}
+
+
+
+template <class T>
+inline T* readImage(const char *filename, int&x, int&y)
+{
+	unsigned char *data = 0;
+	int nbit;
+	data = stbi_load(filename, &x, &y, &nbit, 0);
+	if (data == NULL)
+	{
+		printf("image file[%s] read error.\n", filename);
+		return NULL;
+	}
+	//printf("height %d   width %d \n", y, x);
+
+	T *image = new T[x*y];
+
+	//#pragma omp parallel for
+	for (int i = 0; i<y; ++i) {
+		for (int j = 0; j<x; ++j) {
+			if (nbit == 1)	//8bit
+			{
+				int pos = (i*x + j);
+				image[pos] = data[pos];
+			}
+			if (nbit == 2)	//16bit
+			{
+				int pos = (i*x + j);
+				image[pos] = data[pos * 2 + 0];
+			}
+			if (nbit == 3)	//24
+			{
+				int pos = (i*x + j);
+				image[pos] = data[pos * 3 + 0];
+			}
+			if (nbit == 4)	//32
+			{
+				int pos = (i*x + j);
+				image[pos] = data[pos * 4 + 0];
+			}
+		}
+	}
+	stbi_image_free(data);
+
+	return image;
+}
+
+bool Polygon_mapper_enable = false;
+bool Volume_mapper_enable = false;
+
+std::vector<vtkSmartPointer<vtkPolyDataMapper>> Polygon_mapper;
+vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, int smooth)
+{
+	auto start = std::chrono::system_clock::now();
+	auto end = std::chrono::system_clock::now();
+	auto execution_time = end - start;
+
+	vtkSmartPointer<vtkMarchingCubes> vtk_marching_cubes = vtkSmartPointer<vtkMarchingCubes>::New();
+	vtk_marching_cubes->SetInputData(vtk_image_data);
+	vtk_marching_cubes->ComputeNormalsOn();
+
+	vtk_marching_cubes->SetValue(0, threshold);
+
+	start = std::chrono::system_clock::now();
+
+	vtk_marching_cubes->Update();
+
+	end = std::chrono::system_clock::now();
+	execution_time = end - start;
+
+	std::cout << "threshold: " << threshold << std::endl;
+	std::cout << "time: " << std::chrono::duration_cast<std::chrono::microseconds>(execution_time).count() / 1000.0 << " msec." << std::endl;
+
+	vtkSmartPointer<vtkPolyData> vtk_polydata = vtkSmartPointer<vtkPolyData>::New();
+	vtk_polydata = vtk_marching_cubes->GetOutput();
+
+	std::cout << "NumberOfPolys: ";
+	std::cout.imbue(std::locale(""));
+	std::cout << vtk_polydata->GetNumberOfPolys() << std::endl;
+	std::cout << "NumberOfPoints: " << vtk_polydata->GetNumberOfPoints() << std::endl;
+	std::cout.imbue(std::locale::classic());
+	std::cout << "------------------------" << std::endl;
+
+	vtkSmartPointer<vtkDecimatePro> decimator =
+		vtkDecimatePro::New();
+	decimator->SetInputData(vtk_polydata);
+	decimator->SetTargetReduction(0.05);
+	decimator->SetPreserveTopology(1);
+	decimator->Update();
+	std::cout << "Decimation finished...." << std::endl;
+
+	vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter =
+		vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+	if (smooth)
+	{
+		smoothFilter->SetInputConnection(decimator->GetOutputPort());
+		smoothFilter->SetNumberOfIterations(15);
+		smoothFilter->SetRelaxationFactor(0.1);
+		smoothFilter->FeatureEdgeSmoothingOff();
+		smoothFilter->BoundarySmoothingOn();
+		smoothFilter->Update();
+	}
+
+	// Update normals on newly smoothed polydata
+	vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
+	if (smooth)
+	{
+		normalGenerator->SetInputConnection(smoothFilter->GetOutputPort());
+		normalGenerator->ComputePointNormalsOn();
+		normalGenerator->ComputeCellNormalsOn();
+		normalGenerator->Update();
+	}
+	else
+	{
+		normalGenerator->SetInputData(vtk_polydata);
+		normalGenerator->ComputePointNormalsOn();
+		normalGenerator->ComputeCellNormalsOn();
+		normalGenerator->Update();
+	}
+
+
+	vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	mapper->SetInputConnection(normalGenerator->GetOutputPort());
+	mapper->ScalarVisibilityOff();
+
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+	actor->SetMapper(mapper);
+
+	Polygon_mapper.push_back(mapper);
+	Polygon_mapper_enable = true;
+	return actor;
+}
+
+vtkSmartPointer<vtkGPUVolumeRayCastMapper> Volume_mapper;
+std::vector<_volumeColorValue> volumeColorSet;
+vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol(char* colorset, char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data)
+{
+	FILE* fp = fopen(colorset, "r");
+
+	if (fp)
+	{
+		printf("=>%s\n", colorset);
+		volumeColorSet.clear();
+		char buf[256];
+		while (fgets(buf, 256, fp) != NULL)
+		{
+			_volumeColorValue c;
+			sscanf(buf, "%lf,%lf,%lf,%lf,%lf", c.x, c.x + 1, c.x + 2, c.x + 3, c.x + 4);
+			volumeColorSet.push_back(c);
+		}
+		fclose(fp);
+		for (int i = 0; i < volumeColorSet.size(); i++)
+		{
+			printf("%f,%f,%f,%f,%f\n", volumeColorSet[i].x[0], volumeColorSet[i].x[1], volumeColorSet[i].x[2], volumeColorSet[i].x[3], volumeColorSet[i].x[4]);
+		}
+	}
+
+	vtkSmartPointer<vtkColorTransferFunction> volumeColor = vtkSmartPointer<vtkColorTransferFunction>::New();
+	for (int i = 0; i < volumeColorSet.size(); ++i)
+	{
+		volumeColor->AddRGBPoint(volumeColorSet[i].x[0], volumeColorSet[i].x[1], volumeColorSet[i].x[2], volumeColorSet[i].x[3]);
+	}
+	vtkSmartPointer<vtkPiecewiseFunction> volumeScalarOpacity = vtkSmartPointer<vtkPiecewiseFunction>::New();
+	for (int i = 0; i < volumeColorSet.size(); ++i)
+	{
+		volumeScalarOpacity->AddPoint(volumeColorSet[i].x[0], volumeColorSet[i].x[4]);
+	}
+
+	vtkSmartPointer<vtkVolumeProperty> volumeProperty = vtkSmartPointer<vtkVolumeProperty>::New();
+	volumeProperty->SetColor(volumeColor);
+	volumeProperty->SetScalarOpacity(volumeScalarOpacity);
+	volumeProperty->SetInterpolationTypeToLinear();
+	volumeProperty->ShadeOn();
+	volumeProperty->SetAmbient(0.3);
+	volumeProperty->SetDiffuse(0.75);
+	volumeProperty->SetSpecular(0.35);
+
+	vtkSmartPointer<vtkVolume> volume;
+	volume = vtkSmartPointer<vtkVolume>::New();
+	volume->SetProperty(volumeProperty);
+
+	vtkSmartPointer<vtkGPUVolumeRayCastMapper>volumemapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
+	volumemapper->SetInputData(vtk_image_data);
+	volumemapper->SetSampleDistance(0.1);
+
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+	volume->SetMapper(volumemapper);
+
+	Volume_mapper = volumemapper;
+	Volume_mapper_enable = true;
+	return volume;
+}
+
+vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol0(vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold)
+{
+	std::vector<_volumeColorValue> volumeColorSet2 = volumeColorSet;
+	for (int i = 0; i < volumeColorSet2.size(); i++)
+	{
+		if (volumeColorSet2[i].x[0] < threshold)
+		{
+			volumeColorSet2[i].x[4] = 0.0;
+		}
+	}
+
+	vtkSmartPointer<vtkColorTransferFunction> volumeColor = vtkSmartPointer<vtkColorTransferFunction>::New();
+	for (int i = 0; i < volumeColorSet2.size(); ++i)
+	{
+		volumeColor->AddRGBPoint(volumeColorSet2[i].x[0], volumeColorSet2[i].x[1], volumeColorSet2[i].x[2], volumeColorSet2[i].x[3]);
+	}
+	vtkSmartPointer<vtkPiecewiseFunction> volumeScalarOpacity = vtkSmartPointer<vtkPiecewiseFunction>::New();
+	for (int i = 0; i < volumeColorSet2.size(); ++i)
+	{
+		volumeScalarOpacity->AddPoint(volumeColorSet2[i].x[0], volumeColorSet2[i].x[4]);
+	}
+
+
+
+	vtkSmartPointer<vtkVolumeProperty> volumeProperty = vtkSmartPointer<vtkVolumeProperty>::New();
+	volumeProperty->SetColor(volumeColor);
+	volumeProperty->SetScalarOpacity(volumeScalarOpacity);
+	volumeProperty->SetInterpolationTypeToLinear();
+	volumeProperty->ShadeOn();
+	volumeProperty->SetAmbient(0.3);
+	volumeProperty->SetDiffuse(0.75);
+	volumeProperty->SetSpecular(0.35);
+
+	vtkSmartPointer<vtkVolume> volume;
+	volume = vtkSmartPointer<vtkVolume>::New();
+	volume->SetProperty(volumeProperty);
+
+	vtkSmartPointer<vtkGPUVolumeRayCastMapper>volumemapper = vtkSmartPointer<vtkGPUVolumeRayCastMapper>::New();
+	volumemapper->SetInputData(vtk_image_data);
+	volumemapper->SetSampleDistance(0.1);
+
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+	volume->SetMapper(volumemapper);
+
+	Volume_mapper = volumemapper;
+	return volume;
+}
+
+//bool OnvtkSliderCallback_Execute = false;
+class vtkSliderCallback : public vtkCommand
+{
+public:
+	static vtkSliderCallback *New()
+	{
+		return new vtkSliderCallback;
+	}
+	virtual void Execute(vtkObject *caller, unsigned long, void*)
+	{
+		//if (OnvtkSliderCallback_Execute) return;
+		vtkSliderWidget *sliderWidget =
+			reinterpret_cast<vtkSliderWidget*>(caller);
+		double threshold = static_cast<vtkSliderRepresentation *>(sliderWidget->GetRepresentation())->GetValue();
+
+		//OnvtkSliderCallback_Execute = true;
+		auto v = image3d_to_marching_cubes_vol0(*vtk_image_data_ptr, threshold);
+		render->RemoveActor(*volume_actor_ptr);
+		render->AddActor(v);
+		volume_actor_ptr = &v;
+		//OnvtkSliderCallback_Execute = false;
+
+	}
+	vtkSliderCallback() {}
+	gmrVTKRender* render;
+	vtkSmartPointer<vtkImageData>* vtk_image_data_ptr;
+	vtkSmartPointer<vtkVolume>* volume_actor_ptr;
+};
+
+//BoxWidgetののコールバック
+class vtkMyCallback4 : public gmrVTKCommand
+{
+public:
+	static vtkMyCallback4 *New()
+	{
+		return new vtkMyCallback4;
+	}
+	virtual void Execute(vtkObject *caller, unsigned long, void*)
+	{
+		vtkBoxWidget *widget = reinterpret_cast<vtkBoxWidget*>(caller);
+		vtkPlanes *planes = vtkPlanes::New();
+
+		//Get the planes of the box widget and apply them to the ray cast mapper
+		widget->GetPlanes(planes);
+
+		if (Polygon_mapper_enable)
+		{
+			for ( int i = 0; i < Polygon_mapper.size(); i++)
+			Polygon_mapper[i]->SetClippingPlanes(planes);
+		}
+		if (Volume_mapper_enable)
+		{
+			Volume_mapper->SetClippingPlanes(planes);
+		}
+	}
+};
+
+extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue)
+{
+	if (n_slice <= 0) return -1;
+	const char* voxel_raw = "voxel.raw";
+	char filename[640];
+
+
+	sprintf(filename, "%s\\%s%03d.bmp", dir_name, base_name, 0);
+	printf("initial load:[%s]\n", filename);
+
+	int image_width = 0;
+	int image_height = 0;
+	unsigned short* tmp = readImage<unsigned short>(filename, image_width, image_height);
+	delete[] tmp;
+	const int image_slice = n_slice;
+
+	printf("image_width:%d image_height:%d\n", image_width, image_height);
+	printf("image_slice:%d\n", image_slice);
+
+	FILE* fp = fopen(voxel_raw, "wb");
+	for (int z = 0; z < image_slice; ++z)
+	{
+		sprintf(filename, "%s\\%s%03d.bmp", dir_name, base_name, z);
+		printf("                    \rload:[%d/%d]", (z + 1), image_slice);
+
+		unsigned short* tmp = readImage<unsigned short>(filename, image_width, image_height);
+#if 0
+		for (int y = 0; y < image_height; ++y)
+		{
+			for (int x = 0; x < image_width; ++x)
+			{
+				int pos = y*image_width + x;
+				fwrite(&tmp[pos], sizeof(unsigned short), 1, fp);
+			}
+		}
+#else
+		fwrite(tmp, sizeof(unsigned short), image_height*image_width, fp);
+#endif
+		delete[] tmp;
+	}
+	printf("\n");
+	fclose(fp);
+
+	const int total_voxels = image_width * image_height * image_slice;
+
+	vtkSmartPointer<vtkImageReader> vtk_image_reader = vtkSmartPointer<vtkImageReader>::New();
+	vtk_image_reader->SetDataScalarType(VTK_UNSIGNED_SHORT);
+	vtk_image_reader->SetFileDimensionality(3);
+	vtk_image_reader->SetDataExtent(0, image_width - 1, 0, image_height - 1, 0, image_slice - 1);
+	vtk_image_reader->FileLowerLeftOn();
+	//vtk_image_reader->SetDataByteOrderToBigEndian();
+	vtk_image_reader->SetFileName(voxel_raw);
+	vtk_image_reader->Update();
+
+	vtkSmartPointer<vtkImageData> vtk_image_data = vtkSmartPointer<vtkImageData>::New();
+	vtk_image_data->SetSpacing(1, 1, 1);
+	vtk_image_data = vtk_image_reader->GetOutput();
+
+	std::cout.imbue(std::locale(""));
+	std::cout << "NumberOfPoints: " << vtk_image_data->GetNumberOfPoints() << std::endl;
+	std::cout.imbue(std::locale::classic());
+
+	double bounds[6];
+	vtk_image_data->GetBounds(bounds);
+	for (unsigned int i = 0; i < 6; i += 2)
+	{
+		double range = bounds[i + 1] - bounds[i];
+		bounds[i] = bounds[i] - .1 * range;
+		bounds[i + 1] = bounds[i + 1] + .1 * range;
+	}
+
+	auto start = std::chrono::system_clock::now();
+	auto end = std::chrono::system_clock::now();
+	auto execution_time = end - start;
+	//for (int z = 0; z < image_slice; ++z) {
+	//  for (int y = 0; y < image_height; ++y) {
+	//    for (int x = 0; x < image_width; ++x) {
+	//      const auto voxel = *(static_cast<short*>(vtk_image_data->GetScalarPointer(x, y, z)));
+	//      std::cout << voxel << ", ";
+	//    }
+	//  }
+	//}
+	//std::cout << std::endl;
+
+	const std::vector<double> thresholds{ 10.0, 100.0, 255.0 };
+	const std::vector<double> opacity{ 1, 1, 1 };
+
+	struct color
+	{
+		double r, g, b;
+	};
+	const std::vector<struct color> colors{
+		{ 255.0, 202.0, 202.0 },
+		{ 120.0, 37.0, 22.0 },
+		{ 215.0, 215.0, 210.0 }
+	};
+	gmrVTKRender* render = new gmrVTKRender;
+	render->InteractorStyleTrackballCamera();
+
+	std::vector<vtkSmartPointer<vtkActor>> actors;
+	if (isovalue != NULL)
+	{
+		for (int i = 0; i < thresholds.size()-1; i++)
+		{
+#if 10
+			if (*isovalue >= thresholds[i] && *isovalue <= thresholds[i+1])
+			{
+				continue;
+			}
+			double threshold = *isovalue;
+#else
+			double threshold = thresholds[i];
+#endif
+			vtkSmartPointer<vtkActor>actor = image3d_to_marching_cubes(dir_name, vtk_image_data, threshold, smooth);
+
+			actor->GetProperty()->SetDiffuseColor(colors[i].r / 255.0, colors[i].g / 255.0, colors[i].b / 255.0);
+			//actor->GetProperty()->SetColor(0.2, 0.2, 0.2);
+			actor->GetProperty()->SetOpacity(opacity[i]);
+			actors.push_back(actor);
+
+			render->AddActor(actor);
+		}
+		gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
+		expoter->SaveFile(render, "voxel.obj");
+	}
+
+	vtkSmartPointer<vtkVolume> volume_actor;
+	if (isovalue == NULL)
+	{
+		char* colorset = ".\\bmp_volume.txt";
+		volume_actor = image3d_to_marching_cubes_vol(colorset, dir_name, vtk_image_data);
+		render->AddActor(volume_actor);
+	}
+
+
+
+	gmrVTKText* text1 = new gmrVTKText;
+	text1->SetText("space key =>RubberBandZoom on/off");
+	text1->SetPosition(20, 140);
+	text1->SetSize(15);
+	text1->SetColor(1.0, 0.0, 0.0);
+
+	gmrVTKText* text2 = new gmrVTKText;
+	text2->SetText("=======================================");;
+	text2->SetPosition(20, 120);
+	text2->SetSize(15);
+	text2->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text3 = new gmrVTKText;
+	text3->SetText("r key => resize box on/off");
+	text3->SetPosition(20, 100);
+	text3->SetSize(15);
+	text3->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text4 = new gmrVTKText;
+	text4->SetText("c key => cross section  box on/off");
+	text4->SetPosition(20, 80);
+	text4->SetSize(15);
+	text4->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text5 = new gmrVTKText;
+	text5->SetText("d key => measure on/off");
+	text5->SetPosition(20, 60);
+	text5->SetSize(15);
+	text5->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text6 = new gmrVTKText;
+	text6->SetText("D key => measure clear");
+	text6->SetPosition(20, 40);
+	text6->SetSize(15);
+	text6->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text7 = new gmrVTKText;
+	text7->SetText("m key => measure(2D) on/off");
+	text7->SetPosition(20, 20);
+	text7->SetSize(15);
+	text7->SetColor(0, 1.0, 0.0);
+
+	gmrVTKText* text8 = new gmrVTKText;
+	text8->SetText("b key => box(3D-scaling)  box on/off");
+	text8->SetPosition(20, 0);
+	text8->SetSize(15);
+	text8->SetColor(0, 1.0, 0.0);
+
+
+
+	render->AddActor(text1->GetActor());
+	render->AddActor(text2->GetActor());
+	render->AddActor(text3->GetActor());
+	render->AddActor(text4->GetActor());
+	render->AddActor(text5->GetActor());
+	render->AddActor(text6->GetActor());
+	render->AddActor(text7->GetActor());
+	render->AddActor(text8->GetActor());
+
+
+	if (Volume_mapper_enable)
+	{
+		pointPlacer = vtkSmartPointer<vtkPolyDataPointPlacer>::New();
+		pointPlacer->AddProp(volume_actor);
+
+		handleRep = vtkSmartPointer<vtkPointHandleRepresentation3D>::New();
+		handleRep->SetHandleSize(50);
+		handleRep->GetProperty()->SetColor(1., 0., 0.);
+		handleRep->SetPointPlacer(pointPlacer);
+
+		distanceRep = vtkSmartPointer<vtkDistanceRepresentation2D>::New();
+		distanceRep->SetHandleRepresentation(handleRep);
+		distanceRep->SetLabelFormat("%-#6.3g mm");
+
+		distanceWidget = vtkDistanceWidget::New();
+		distanceWidget->SetRepresentation(distanceRep);
+		distanceWidget->SetInteractor(render->GetRenderWindowInteractor());
+	}
+
+	// コールバックの登録
+	render->AddCallback(vtkCommand::KeyPressEvent, MyCallback::New());
+
+	if (1/*output == 100 || output == 101*/)
+	{
+		if (1)
+		{
+			boxWidget = vtkBoxWidget::New();
+			boxWidget->SetInteractor(render->GetRenderWindowInteractor());
+			boxWidget->SetPlaceFactor(1.25);
+
+			if (Polygon_mapper_enable)
+			{
+				for (int i = 0; i < actors.size(); i++)
+					boxWidget->SetProp3D(actors[i]);
+			}
+			if (Volume_mapper_enable)
+			{
+				boxWidget->SetProp3D(volume_actor);
+			}
+
+			boxWidget->PlaceWidget();
+			vtkMyCallback2 *callback = vtkMyCallback2::New();
+			boxWidget->AddObserver(vtkCommand::InteractionEvent, callback);
+			boxWidget->On();
+		}
+
+		if (1)
+		{
+			//BoxWidget2
+			boxWidget2 = vtkBoxWidget::New();
+			boxWidget2->SetInteractor(render->GetRenderWindowInteractor());
+			boxWidget2->SetPlaceFactor(1.25);
+			boxWidget2->InsideOutOn();
+
+			if (Polygon_mapper_enable)
+			{
+				for (int i = 0; i < actors.size(); i++)
+					boxWidget2->SetProp3D(actors[i]);
+			}
+			if (Volume_mapper_enable)
+			{
+				boxWidget2->SetProp3D(volume_actor);
+			}
+			boxWidget2->PlaceWidget();
+			vtkMyCallback4 *callback2 = vtkMyCallback4::New();
+			boxWidget2->AddObserver(vtkCommand::InteractionEvent, callback2);
+			boxWidget2->On();
+		}
+	}
+
+	cellpicker = vtkVolumePicker::New();
+	cellpicker->SetTolerance(1.0e-6);
+	cellpicker->SetVolumeOpacityIsovalue(0.1);
+	render->GetRenderWindowInteractor()->SetPicker(cellpicker);
+
+	MyCallbackPick* callback = MyCallbackPick::New();
+	render->AddCallback(vtkCommand::LeftButtonPressEvent, callback);
+	picker_flag = 0;
+
+
+#if 10
+	if (Volume_mapper_enable)
+	{
+		//vtkSmartPointer<vtkSliderRepresentation3D> sliderRep =
+		//	vtkSmartPointer<vtkSliderRepresentation3D>::New();
+
+		vtkSmartPointer<vtkSliderRepresentation2D> sliderRep =
+			vtkSmartPointer<vtkSliderRepresentation2D>::New();
+
+		sliderRep->SetMinimumValue(0.0);
+		sliderRep->SetMaximumValue(255.0);
+		sliderRep->SetValue(0.0);
+		sliderRep->SetTitleText("test");
+		//sliderRep->GetPoint1Coordinate()->SetCoordinateSystemToWorld();
+		//sliderRep->GetPoint1Coordinate()->SetValue(-4, 6, 0);
+		//sliderRep->GetPoint2Coordinate()->SetCoordinateSystemToWorld();
+		//sliderRep->GetPoint2Coordinate()->SetValue(4, 6, 0);
+		//sliderRep->GetPoint1Coordinate()->SetCoordinateSystemToNormalizedViewport();
+		//sliderRep->GetPoint1Coordinate()->SetValue(20, 160, 0);
+		//sliderRep->GetPoint2Coordinate()->SetCoordinateSystemToNormalizedViewport();
+		//sliderRep->GetPoint2Coordinate()->SetValue(120, 160, 0);
+		//sliderRep->SetSliderLength(0.075);
+		//sliderRep->SetSliderWidth(0.05);
+		//sliderRep->SetEndCapLength(0.05);
+
+		// Set color properties:
+		// Change the color of the knob that slides
+		sliderRep->GetSliderProperty()->SetColor(1, 0, 0);
+		// Change the color of the text indicating what the slider controls
+		sliderRep->GetTitleProperty()->SetColor(1, 1, 1);
+		// Change the color of the text displaying the value
+		sliderRep->GetLabelProperty()->SetColor(1, 1, 1);
+		// Change the color of the knob when the mouse is held on it
+		sliderRep->GetSelectedProperty()->SetColor(0, 1, 0);//green
+		// Change the color of the bar
+		sliderRep->GetTubeProperty()->SetColor(1, 1, 0);//yellow
+		// Change the color of the ends of the bar
+		sliderRep->GetCapProperty()->SetColor(1, 1, 0);//yellow
+
+		sliderRep->GetPoint1Coordinate()->SetCoordinateSystemToDisplay();
+		sliderRep->GetPoint1Coordinate()->SetValue(20, 460, 0);
+		sliderRep->GetPoint2Coordinate()->SetCoordinateSystemToDisplay();
+		sliderRep->GetPoint2Coordinate()->SetValue(220, 460, 0);
+
+
+		vtkSmartPointer<vtkSliderWidget> sliderWidget =
+			vtkSmartPointer<vtkSliderWidget>::New();
+		sliderWidget->SetInteractor(render->GetRenderWindowInteractor());
+		sliderWidget->SetRepresentation(sliderRep);
+		sliderWidget->SetAnimationModeToAnimate();
+		sliderWidget->EnabledOn();
+
+		vtkSmartPointer<vtkSliderCallback> slider_callback =
+			vtkSmartPointer<vtkSliderCallback>::New();
+
+		slider_callback->render = render;
+		slider_callback->vtk_image_data_ptr = &vtk_image_data;
+		slider_callback->volume_actor_ptr = &volume_actor;
+		sliderWidget->AddObserver(vtkCommand::InteractionEvent, slider_callback);
+	}
+#endif
+
+	render->SetBackgroundColor(0, 0, 0);
+	render->DefaultRun();
+	//delete expoter;
+
+	return 0;
 }
