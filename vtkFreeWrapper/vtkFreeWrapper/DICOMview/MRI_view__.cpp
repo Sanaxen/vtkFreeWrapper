@@ -509,6 +509,13 @@ extern "C" void SetDICOM_3DViewer_isoRange(double range[2])
 	DICOM_3DViewer_isoRange[1] = range[1];
 }
 
+double __targetReduction = 0.05;
+extern "C" void setTargetReduction(double t) { __targetReduction = t; }
+extern "C" double getTargetReduction() { return __targetReduction; }
+int __Smooth_itr = 1;
+extern "C" void setSmoothing(int t) { __Smooth_itr = t; }
+extern "C" int getSmoothing() { return __Smooth_itr; }
+
 extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile)
 {
 	gmrVTKText* text1 = new gmrVTKText;
@@ -718,6 +725,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 	axes->SetOrigin(-6.0, 2.0, -6.0);
 	axes->SetRadius(0.05);
 	axes->SymmetricOff();
+	//render->AddActor(axes->GetActor());
 
 	pointPlacer = vtkSmartPointer<vtkPolyDataPointPlacer>::New();
 	pointPlacer->AddProp(reader->GetVolume());
@@ -828,6 +836,30 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 		gmrVTKExportOBJ* expoter = new gmrVTKExportOBJ();
 		if (outfile != NULL)
 		{
+			vtkPolyData* poly = reader->GetMesh();
+
+			vtkSmartPointer<vtkDecimatePro> decimator =
+				vtkDecimatePro::New();
+			decimator->SetInputData(reader->GetMesh());
+			decimator->SetTargetReduction(getTargetReduction());
+			decimator->SetPreserveTopology(1);
+			decimator->Update();
+			std::cout << "Decimation finished...." << std::endl;
+			poly = decimator->GetOutput();
+
+			vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter =
+				vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+			if (getSmoothing() > 0)
+			{
+				smoothFilter->SetInputData(poly);
+				smoothFilter->SetNumberOfIterations(getSmoothing());
+				smoothFilter->SetRelaxationFactor(0.1);
+				smoothFilter->FeatureEdgeSmoothingOff();
+				smoothFilter->BoundarySmoothingOn();
+				smoothFilter->Update();
+				poly = smoothFilter->GetOutput();
+			}
+
 			double isoRange[2] = { DICOM_3DViewer_isoRange[0], DICOM_3DViewer_isoRange[1] };
 
 			int colorScheme = DICOM_3DViewer_colorScheme;
@@ -860,7 +892,7 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			vtkSmartPointer<vtkUnsignedCharArray> colors =
 				vtkSmartPointer<vtkUnsignedCharArray>::New();
 			colors->SetNumberOfComponents(3);
-			colors->SetNumberOfTuples(reader->GetMesh()->GetPoints()->GetNumberOfPoints());
+			colors->SetNumberOfTuples(poly->GetPoints()->GetNumberOfPoints());
 			colors->SetName("DicomColors");
 
 			double rgb[3];
@@ -872,18 +904,18 @@ extern "C" void DICOM_3DViewer(char* folderName, int output, double sample_dist,
 			{
 				lut->GetColor(reader->IsoValue(), rgb);
 			}
-			for (int i = 0; i < reader->GetMesh()->GetPoints()->GetNumberOfPoints(); i++)
+			for (int i = 0; i < poly->GetPoints()->GetNumberOfPoints(); i++)
 			{
 				colors->SetComponent(i, 0, rgb[0] * 255);
 				colors->SetComponent(i, 1, rgb[1] * 255);
 				colors->SetComponent(i, 2, rgb[2] * 255);
 			}
-			reader->GetMesh()->GetPointData()->SetScalars(colors);
+			poly->GetPointData()->SetScalars(colors);
 			reader->GetSurface_Mapper()->SetColorModeToDefault();
 
 			std::string file = outfile;
 			file += ".obj";
-			int stat = expoter->exportVertexColorOBJ((char*)file.c_str(), reader->GetMesh(), colors);
+			int stat = expoter->exportVertexColorOBJ((char*)file.c_str(), poly, colors);
 			if (stat != 0)
 			{
 				expoter->SaveFile(render, outfile);
@@ -1116,7 +1148,7 @@ bool Polygon_mapper_enable = false;
 bool Volume_mapper_enable = false;
 
 std::vector<vtkSmartPointer<vtkPolyDataMapper>> Polygon_mapper;
-vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, int smooth)
+vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, int smooth, double targetReduction=0.05)
 {
 	auto start = std::chrono::system_clock::now();
 	auto end = std::chrono::system_clock::now();
@@ -1151,7 +1183,7 @@ vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPoint
 	vtkSmartPointer<vtkDecimatePro> decimator =
 		vtkDecimatePro::New();
 	decimator->SetInputData(vtk_polydata);
-	decimator->SetTargetReduction(0.05);
+	decimator->SetTargetReduction(targetReduction);
 	decimator->SetPreserveTopology(1);
 	decimator->Update();
 	std::cout << "Decimation finished...." << std::endl;
@@ -1161,7 +1193,7 @@ vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPoint
 	if (smooth)
 	{
 		smoothFilter->SetInputConnection(decimator->GetOutputPort());
-		smoothFilter->SetNumberOfIterations(15);
+		smoothFilter->SetNumberOfIterations(smooth);
 		smoothFilter->SetRelaxationFactor(0.1);
 		smoothFilter->FeatureEdgeSmoothingOff();
 		smoothFilter->BoundarySmoothingOn();
@@ -1363,7 +1395,7 @@ public:
 	}
 };
 
-extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue)
+extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue, double targetReduction)
 {
 	if (n_slice <= 0) return -1;
 	const char* voxel_raw = "voxel.raw";
@@ -1476,7 +1508,7 @@ extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int
 #else
 			double threshold = thresholds[i];
 #endif
-			vtkSmartPointer<vtkActor>actor = image3d_to_marching_cubes(dir_name, vtk_image_data, threshold, smooth);
+			vtkSmartPointer<vtkActor>actor = image3d_to_marching_cubes(dir_name, vtk_image_data, threshold, smooth, targetReduction);
 
 			actor->GetProperty()->SetDiffuseColor(colors[i].r / 255.0, colors[i].g / 255.0, colors[i].b / 255.0);
 			//actor->GetProperty()->SetColor(0.2, 0.2, 0.2);

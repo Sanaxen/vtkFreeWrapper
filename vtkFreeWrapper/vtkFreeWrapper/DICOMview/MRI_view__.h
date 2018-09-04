@@ -10,7 +10,12 @@
 
 extern "C"
 {
-MRI_VIEW_EXPORT int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue);
+MRI_VIEW_EXPORT void setTargetReduction(double t);
+MRI_VIEW_EXPORT double getTargetReduction();
+MRI_VIEW_EXPORT void setSmoothing(int t);
+MRI_VIEW_EXPORT int getSmoothing();
+
+MRI_VIEW_EXPORT int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue, double targetReduction);
 
 MRI_VIEW_EXPORT void DICOM_SliceViewer(char* folderName, int capture);
 MRI_VIEW_EXPORT void DICOM_3DViewer(char* folderName, int output, double sample_dist, double isovalue, char* outfile);

@@ -43,6 +43,8 @@ int main(int argc, char** argv)
 		fprintf(stderr, "-sample_dist sample_dist\n");
 		fprintf(stderr, "-o filename\n");
 
+		fprintf(stderr, "-smooth smoothing_itr => output mesh only\n");
+		fprintf(stderr, "-target_reduction resize(%%) => output mesh only\n");
 		fprintf(stderr, "-s slice_image_num\n");
 		fprintf(stderr, "-base_name image_base_name\n");
 		fprintf(stderr, "no option => slice viewer\n");
@@ -61,6 +63,7 @@ int main(int argc, char** argv)
 
 	double isovalue = 0.0;// -1.0E32;
 	double sample_dist = -1.0;
+	double targetReduction = 0.05;
 
 	char* base_name = NULL;
 	int slice_image_num = -1;
@@ -70,6 +73,18 @@ int main(int argc, char** argv)
 	int mode = -1;
 	for (int i = 2; i < argc; ++i)
 	{
+		if (strcmp("-smooth", argv[i]) == 0)
+		{
+			setSmoothing(atoi(argv[i + 1]));
+			i++;
+			continue;
+		}
+		if (strcmp("-target_reduction", argv[i]) == 0)
+		{
+			targetReduction = atof(argv[i + 1]);
+			i++;
+			continue;
+		}
 		if (strcmp("-base_name", argv[i]) == 0)
 		{
 			base_name = argv[i + 1];
@@ -152,9 +167,10 @@ int main(int argc, char** argv)
 		double* iso = NULL;
 		if (isovalue_set) iso = &isovalue;
 
-		return loadSliceImages(folderName, base_name, slice_image_num, 1, iso);
+		return loadSliceImages(folderName, base_name, slice_image_num, getSmoothing(), iso, targetReduction);
 
 	}
+	setTargetReduction(targetReduction);
 	if ( mode == POLYGON_VIEW)
 	{
 		fprintf(stderr, "==> 3d viewer!!\n");
