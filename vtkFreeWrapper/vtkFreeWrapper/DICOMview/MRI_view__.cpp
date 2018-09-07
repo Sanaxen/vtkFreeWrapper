@@ -62,6 +62,8 @@
 #include <vtkSliderWidget.h>
 #include <vtkSliderRepresentation3D.h>
 #include <vtkSliderRepresentation2D.h>
+#include <vtkTransformFilter.h>
+#include <vtkTransformPolyDataFilter.h>
 
  // DICOM sample image sets
  // http://149.142.216.30/DICOM_FILES/Index.html
@@ -1148,7 +1150,7 @@ bool Polygon_mapper_enable = false;
 bool Volume_mapper_enable = false;
 
 std::vector<vtkSmartPointer<vtkPolyDataMapper>> Polygon_mapper;
-vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, int smooth, double targetReduction=0.05)
+vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, double scale[3], int smooth, double targetReduction=0.05)
 {
 	auto start = std::chrono::system_clock::now();
 	auto end = std::chrono::system_clock::now();
@@ -1173,12 +1175,25 @@ vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPoint
 	vtkSmartPointer<vtkPolyData> vtk_polydata = vtkSmartPointer<vtkPolyData>::New();
 	vtk_polydata = vtk_marching_cubes->GetOutput();
 
+	vtkSmartPointer<vtkTransform> transform =
+		vtkSmartPointer<vtkTransform>::New();
+	transform->Scale(scale[0], scale[1], scale[2]);
+
+	vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter =
+		vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+	transformFilter->SetInputData(vtk_polydata);
+	transformFilter->SetTransform(transform);
+	transformFilter->Update();
+
+
 	std::cout << "NumberOfPolys: ";
 	std::cout.imbue(std::locale(""));
-	std::cout << vtk_polydata->GetNumberOfPolys() << std::endl;
-	std::cout << "NumberOfPoints: " << vtk_polydata->GetNumberOfPoints() << std::endl;
+	std::cout << transformFilter->GetOutput()->GetNumberOfPolys() << std::endl;
+	std::cout << "NumberOfPoints: " << transformFilter->GetOutput()->GetNumberOfPoints() << std::endl;
 	std::cout.imbue(std::locale::classic());
 	std::cout << "------------------------" << std::endl;
+	vtk_polydata = transformFilter->GetOutput();
+
 
 	vtkSmartPointer<vtkDecimatePro> decimator =
 		vtkDecimatePro::New();
@@ -1232,7 +1247,7 @@ vtkSmartPointer<vtkActor> image3d_to_marching_cubes(char* dirName, vtkSmartPoint
 
 vtkSmartPointer<vtkGPUVolumeRayCastMapper> Volume_mapper;
 std::vector<_volumeColorValue> volumeColorSet;
-vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol(char* colorset, char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data)
+vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol(char* colorset, char* dirName, vtkSmartPointer<vtkImageData>& vtk_image_data, double scale[3])
 {
 	FILE* fp = fopen(colorset, "r");
 
@@ -1272,7 +1287,8 @@ vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol(char* colorset, char* d
 	volumeProperty->ShadeOn();
 	volumeProperty->SetAmbient(0.3);
 	volumeProperty->SetDiffuse(0.75);
-	volumeProperty->SetSpecular(0.35);
+	volumeProperty->SetSpecular(0.1);
+
 
 	vtkSmartPointer<vtkVolume> volume;
 	volume = vtkSmartPointer<vtkVolume>::New();
@@ -1285,12 +1301,19 @@ vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol(char* colorset, char* d
 	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 	volume->SetMapper(volumemapper);
 
+	vtkSmartPointer<vtkTransform> transform =
+		vtkSmartPointer<vtkTransform>::New();
+	transform->Scale(scale[0], scale[1], scale[2]);
+	//transform->Scale(1,1,1);
+	volume->SetUserTransform(transform);
+
+
 	Volume_mapper = volumemapper;
 	Volume_mapper_enable = true;
 	return volume;
 }
 
-vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol0(vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold)
+vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol0(vtkSmartPointer<vtkImageData>& vtk_image_data, double threshold, double scale[3])
 {
 	std::vector<_volumeColorValue> volumeColorSet2 = volumeColorSet;
 	for (int i = 0; i < volumeColorSet2.size(); i++)
@@ -1321,7 +1344,7 @@ vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol0(vtkSmartPointer<vtkIma
 	volumeProperty->ShadeOn();
 	volumeProperty->SetAmbient(0.3);
 	volumeProperty->SetDiffuse(0.75);
-	volumeProperty->SetSpecular(0.35);
+	volumeProperty->SetSpecular(0.1);
 
 	vtkSmartPointer<vtkVolume> volume;
 	volume = vtkSmartPointer<vtkVolume>::New();
@@ -1333,6 +1356,12 @@ vtkSmartPointer<vtkVolume> image3d_to_marching_cubes_vol0(vtkSmartPointer<vtkIma
 
 	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 	volume->SetMapper(volumemapper);
+
+	vtkSmartPointer<vtkTransform> transform =
+		vtkSmartPointer<vtkTransform>::New();
+	transform->Scale(scale[0], scale[1], scale[2]);
+	//transform->Scale(1,1,1);
+	volume->SetUserTransform(transform);
 
 	Volume_mapper = volumemapper;
 	return volume;
@@ -1354,7 +1383,7 @@ public:
 		double threshold = static_cast<vtkSliderRepresentation *>(sliderWidget->GetRepresentation())->GetValue();
 
 		//OnvtkSliderCallback_Execute = true;
-		auto v = image3d_to_marching_cubes_vol0(*vtk_image_data_ptr, threshold);
+		auto v = image3d_to_marching_cubes_vol0(*vtk_image_data_ptr, threshold, scale);
 		render->RemoveActor(*volume_actor_ptr);
 		render->AddActor(v);
 		volume_actor_ptr = &v;
@@ -1365,6 +1394,7 @@ public:
 	gmrVTKRender* render;
 	vtkSmartPointer<vtkImageData>* vtk_image_data_ptr;
 	vtkSmartPointer<vtkVolume>* volume_actor_ptr;
+	double* scale;
 };
 
 //BoxWidgetののコールバック
@@ -1395,16 +1425,37 @@ public:
 	}
 };
 
-extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int smooth, double* isovalue, double targetReduction)
+extern "C" int loadSliceImages(char* dir_name, char* base_name, char* ext, int n_slice, int smooth, double* isovalue, double targetReduction, double* scale)
 {
 	if (n_slice <= 0) return -1;
 	const char* voxel_raw = "voxel.raw";
 	char filename[640];
 
+	int format_idx = -1;
+	char* format[]=
+	{
+		"%s\\%s%d%s",
+		"%s\\%s%01d%s",
+		"%s\\%s%02d%s",
+		"%s\\%s%03d%s",
+		"%s\\%s%04d%s",
+		"%s\\%s%05d%s",
+		"%s\\%s%06d%s"
+	};
 
-	sprintf(filename, "%s\\%s%03d.bmp", dir_name, base_name, 0);
+	for (int i = 0; i < 7; i++)
+	{
+		sprintf(filename, format[i], dir_name, base_name, 0, ext);
+		FILE* tmp = fopen(filename, "r");
+		if (tmp)
+		{
+			format_idx = i;
+			fclose(tmp);
+			break;
+		}
+	}
 	printf("initial load:[%s]\n", filename);
-
+	
 	int image_width = 0;
 	int image_height = 0;
 	unsigned short* tmp = readImage<unsigned short>(filename, image_width, image_height);
@@ -1417,7 +1468,7 @@ extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int
 	FILE* fp = fopen(voxel_raw, "wb");
 	for (int z = 0; z < image_slice; ++z)
 	{
-		sprintf(filename, "%s\\%s%03d.bmp", dir_name, base_name, z);
+		sprintf(filename, format[format_idx], dir_name, base_name, z, ext);
 		printf("                    \rload:[%d/%d]", (z + 1), image_slice);
 
 		unsigned short* tmp = readImage<unsigned short>(filename, image_width, image_height);
@@ -1508,7 +1559,7 @@ extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int
 #else
 			double threshold = thresholds[i];
 #endif
-			vtkSmartPointer<vtkActor>actor = image3d_to_marching_cubes(dir_name, vtk_image_data, threshold, smooth, targetReduction);
+			vtkSmartPointer<vtkActor>actor = image3d_to_marching_cubes(dir_name, vtk_image_data, threshold, scale, smooth, targetReduction);
 
 			actor->GetProperty()->SetDiffuseColor(colors[i].r / 255.0, colors[i].g / 255.0, colors[i].b / 255.0);
 			//actor->GetProperty()->SetColor(0.2, 0.2, 0.2);
@@ -1525,7 +1576,7 @@ extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int
 	if (isovalue == NULL)
 	{
 		char* colorset = ".\\bmp_volume.txt";
-		volume_actor = image3d_to_marching_cubes_vol(colorset, dir_name, vtk_image_data);
+		volume_actor = image3d_to_marching_cubes_vol(colorset, dir_name, vtk_image_data, scale);
 		render->AddActor(volume_actor);
 	}
 
@@ -1729,6 +1780,7 @@ extern "C" int loadSliceImages(char* dir_name, char* base_name, int n_slice, int
 		slider_callback->render = render;
 		slider_callback->vtk_image_data_ptr = &vtk_image_data;
 		slider_callback->volume_actor_ptr = &volume_actor;
+		slider_callback->scale = scale;
 		sliderWidget->AddObserver(vtkCommand::InteractionEvent, slider_callback);
 	}
 #endif

@@ -29,6 +29,7 @@ int main(int argc, char** argv)
 {
 	char* folderName;
 	char* outfile = NULL;
+	double scale[3] = { 1,1,1 };
 
 	if ( argc < 2 )
 	{
@@ -47,6 +48,8 @@ int main(int argc, char** argv)
 		fprintf(stderr, "-target_reduction resize(%%) => output mesh only\n");
 		fprintf(stderr, "-s slice_image_num\n");
 		fprintf(stderr, "-base_name image_base_name\n");
+		fprintf(stderr, "-ext ext_name => defaule .bmp\n");
+		fprintf(stderr, "-scale x,y,z => defaule 1,1,1\n");
 		fprintf(stderr, "no option => slice viewer\n");
 		return 1;
 	}
@@ -66,6 +69,7 @@ int main(int argc, char** argv)
 	double targetReduction = 0.05;
 
 	char* base_name = NULL;
+	char* ext_name = ".bmp";
 	int slice_image_num = -1;
 	bool isovalue_set = false;
 
@@ -73,6 +77,12 @@ int main(int argc, char** argv)
 	int mode = -1;
 	for (int i = 2; i < argc; ++i)
 	{
+		if (strcmp("-scale", argv[i]) == 0)
+		{
+			sscanf(argv[i + 1], "%lf,%lf,%lf", scale, scale + 1, scale + 2);
+			i++;
+			continue;
+		}
 		if (strcmp("-smooth", argv[i]) == 0)
 		{
 			setSmoothing(atoi(argv[i + 1]));
@@ -82,6 +92,13 @@ int main(int argc, char** argv)
 		if (strcmp("-target_reduction", argv[i]) == 0)
 		{
 			targetReduction = atof(argv[i + 1]);
+			i++;
+			continue;
+		}
+		
+		if (strcmp("-ext", argv[i]) == 0)
+		{
+			ext_name = argv[i + 1];
 			i++;
 			continue;
 		}
@@ -167,7 +184,7 @@ int main(int argc, char** argv)
 		double* iso = NULL;
 		if (isovalue_set) iso = &isovalue;
 
-		return loadSliceImages(folderName, base_name, slice_image_num, getSmoothing(), iso, targetReduction);
+		return loadSliceImages(folderName, base_name, ext_name, slice_image_num, getSmoothing(), iso, targetReduction, scale);
 
 	}
 	setTargetReduction(targetReduction);
