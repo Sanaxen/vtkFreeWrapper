@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 	std::cout << "The resulting matrix is: " << *m << std::endl;
 
 	{
-		ofstream outputfile("MeanDistance.txt");
+		std::ofstream outputfile("MeanDistance.txt");
 		if (!outputfile.fail())
 		{
 			outputfile << "MeanDistance:" << icp->GetMeanDistance() << std::endl;
