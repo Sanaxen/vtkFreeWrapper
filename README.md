@@ -70,7 +70,8 @@ void dicom2(char* folderName, int VolumeRenderring)
 
 
 Visual Studio 2019 C ++ and VTK-9.4.0 
-cmake
+
+vtk build cmake
 <img src="./images/001.png"/>  
 ``BUILD_SHARED_LIBS`` **OFF**
 
