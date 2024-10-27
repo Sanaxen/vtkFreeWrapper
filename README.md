@@ -2,11 +2,11 @@
 
 ## What's New
 - between two points in 3D image of volume rendering  
-<img src="https://github.com/Sanaxen/vtkFreeWrapper/blob/master/images/3.png"/>  
+<img src="./images/3.png"/>  
 
 ## Image Examples
-<img src="https://github.com/Sanaxen/vtkFreeWrapper/blob/master/images/1.png"/>  
-<img src="https://github.com/Sanaxen/vtkFreeWrapper/blob/master/images/2.png"/>  
+<img src="./images/1.png"/>  
+<img src="./images/2.png"/>  
 
 ## Code Examples1
 2D image
@@ -68,5 +68,19 @@ void dicom2(char* folderName, int VolumeRenderring)
 ```
 
 
-Visual Studio 2015 C ++ and VTK-7.1.1  
 
+Visual Studio 2019 C ++ and VTK-9.4.0 
+cmake
+<img src="./images/001.png"/>  
+``BUILD_SHARED_LIBS`` **OFF**
+
+```
+#pragma comment( lib, "opengl32.lib" )
+#pragma comment( lib, "vfw32.lib")
+
+#if VTK_VER == 940
+#pragma comment( lib, "ws2_32.lib")
+#pragma comment( lib, "Psapi.lib")
+#pragma comment( lib, "Dbghelp.lib")
+#endif
+```

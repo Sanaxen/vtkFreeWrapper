@@ -13,6 +13,9 @@
 #pragma comment( lib, "opengl32.lib" )
 #pragma comment( lib, "vfw32.lib")
 
+#pragma comment( lib, "ws2_32.lib")
+#pragma comment( lib, "Psapi.lib")
+#pragma comment( lib, "Dbghelp.lib")
 
 
 int main(int argc, char** argv)

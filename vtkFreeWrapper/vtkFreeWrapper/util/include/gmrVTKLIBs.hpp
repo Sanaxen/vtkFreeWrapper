@@ -7,7 +7,7 @@
 //#define VTK_VER	711	//7.1.1
 //#define VTK_VER	811	//8.1.1
 //#define VTK_VER	940	//9.4.1
-#define VTK_VER	940	//9.4.1
+#define VTK_VER	940	//9.4.0
 
 #if VTK_VER == 510
 #pragma comment( lib, "vtksys.lib")
@@ -870,6 +870,13 @@
 #ifdef WIN32
 #pragma comment( lib, "opengl32.lib" )
 #pragma comment( lib, "vfw32.lib")
+
+#if VTK_VER == 940
+#pragma comment( lib, "ws2_32.lib")
+#pragma comment( lib, "Psapi.lib")
+#pragma comment( lib, "Dbghelp.lib")
+#endif
+
 #endif
 
 #endif

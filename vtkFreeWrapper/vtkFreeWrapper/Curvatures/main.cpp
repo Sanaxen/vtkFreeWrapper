@@ -12,8 +12,6 @@
 #define NO_LINK_LIBS
 #include "gmrVTKLIBs.hpp"
 #pragma comment( lib, "../../../vtkFreeWrapper/util/lib/Release/64bit/vtkWrapperLib.lib" )
-#pragma comment( lib, "opengl32.lib" )
-#pragma comment( lib, "vfw32.lib")
 
 int exportVertexColorOBJ(char* filename, gmrVTKMeshFilter* meshFilter, vtkPolyDataAlgorithm* poly)
 {
