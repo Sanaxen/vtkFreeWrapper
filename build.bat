@@ -60,3 +60,11 @@ echo "build build success" >> log.txt
 
 
 echo "build finish" >> log.txt
+
+cd test
+set dataset=https://github.com/Sanaxen/vtkFreeWrapper/releases/download/v0.1/data.7z
+ 
+:bitsadmin /transfer getFile %dataset%  %~dp0data.7z
+curl -L %dataset%  -o data.7z
+ 
+tar -xf data.7z
